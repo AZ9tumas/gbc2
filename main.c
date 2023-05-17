@@ -1,9 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "cartridge.h"
+#include "cpu.h"
 
 int main(int argc, char* argv[]){
+
+    Emulator* emu;
+
+    initEmulator(emu);
 
     if (argc > 1) {
         char* filePath = argv[1];
@@ -25,6 +29,8 @@ int main(int argc, char* argv[]){
         Cartridge cart;
         initCartridge(&cart, memory, size);
         print_cartridge(&cart);
+
+        Start(&cart, emu);
 
     } else {
         printf("No input file has been provided.\n");
