@@ -4,7 +4,8 @@ void printInstruction(Emulator* emu){
     switch (emu->PC.entireByte) {
         
         case 0x01: printf("NOP\n"); break;
-    
+        case 0x02: printf("Some other instruction\n"); break;
+        /* test 2 */
         default: printf("Invalid instruction\n");
     }
 }
