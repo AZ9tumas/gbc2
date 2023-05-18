@@ -18,7 +18,24 @@ void printInstruction(Emulator* emu) {
         case 0x0D: printf("DEC C\n"); break;
         case 0x0E: printf("LD C, u8\n"); break;
         case 0x0F: printf("RRCA\n"); break;
-        // Add more cases for other instructions here
+        
+        case 0x10: printf("STOP\n"); break;
+        case 0x11: printf("LD DE, u16\n"); break;
+        case 0x12: printf("LD (DE), A\n"); break;
+        case 0x13: printf("INC DE\n"); break;
+        case 0x14: printf("INC D\n"); break;
+        case 0x15: printf("DEC D\n"); break;
+        case 0x16: printf("LD D, u8\n"); break;
+        case 0x17: printf("RLA\n"); break;
+        case 0x18: printf("JR r8\n"); break;
+        case 0x19: printf("ADD HL, DE\n"); break;
+        case 0x1A: printf("LD A, (DE)\n"); break;
+        case 0x1B: printf("DEC DE\n"); break;
+        case 0x1C: printf("INC E\n"); break;
+        case 0x1D: printf("DEC E\n"); break;
+        case 0x1E: printf("LD E, u8\n"); break;
+        case 0x1F: printf("RRA\n"); break;
+
         default: printf("Invalid instruction\n");
     }
 }
