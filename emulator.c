@@ -20,3 +20,7 @@ Emulator* initEmulator(Emulator* emu){
 
     printf("Finished initializing the emulator.\n");
 }
+
+void modify_flag(Emulator* emu, flags flag, u8 value){
+    emu->AF.bytes.lower &= ~(1 << flag); emu->AF.bytes.lower |= value << flag;
+}

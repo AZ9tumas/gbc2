@@ -12,16 +12,11 @@ typedef union {
 } Register;
 
 typedef enum {
-    z = 7,
-    n = 6,
-    h = 5, 
-    c = 4
+    flag_z = 7,
+    flag_n = 6,
+    flag_h = 5, 
+    flag_c = 4
 } flags;
-
-#define flag(emu, flag, val) \
-    emu->AF.bytes.lower &= ~(1 << flag); \
-    emu->AF.bytes.lower |= val << flag;
-
 typedef Register res;
 
 typedef struct {

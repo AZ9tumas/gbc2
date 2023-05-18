@@ -19,13 +19,28 @@
 #define DE(emu) emu->DE.entireByte
 #define HL(emu) emu->HL.entireByte
 
+/* Flags */
+
+#define set_flagh_add(emu, v1, v2) modify_flag(emu, flag_h, (((uint32_t)v1 & 0xf) + ((uint32_t)v2 & 0xf) > 0xf) ? 1 : 0);
+#define set_flagh_sub(emu, v1, v2) modify_flag(emu, flag_h, ((v1 & 0xf) - (v2 & 0xf) & 0x10) ? 1 : 0)
+#define set_flagh_addu16(emu, v1, v2) modify_flag(emu, flag_h, (((uint32_t)v1 & 0xfff) + ((uint32_t)v2 & 0xfff) > 0xfff) ? 0 : 1)
+#define set_flagc_addu16(emu, v1, v2) modify_flag(emu, flag_c, ((uint32_t)(v1) + (uint32_t)(v2)) > 0xFFFF ? 1 : 0)
+#define set_flagc_add(emu, v1, v2) modify_flag(emu, flag_c, ((uint16_t)(v1) + (uint16_t)(v2)) > 0xFF ? 1 : 0)
+#define set_flagc_subu16(emu, v1, v2) modify_flag(emu, flag_c, ((int)(v1) - (int)(v2)) < 0 ? 1 : 0)
+#define set_flagc_sub(emu, v1, v2) modify_flag(emu, flag_c, ((int)(v1) - (int)(v2)) < 0 ? 1 : 0)
+
 #define LD_u8(emu, reg) reg = read(emu, emu->PC.entireByte++);
 #define LD_u16(emu, reg) reg = read_u16(emu);
 #define LD_addr_reg(emu, addr, reg) write(emu, addr,  reg);
 
+#define INC_RR(emu, reg) reg ++;
+#define DEC_RR(emy, reg) reg --;
+
 #define INC(emu, reg) inc_r8(emu, reg); reg ++;
 #define DEC(emu, reg) dec_r8(emu, reg); reg --;
-#define RLCA(emu, reg) reg = rotate_left_circular_carry_accumulator(reg);
+#define ADD(emu, v1, v2) 
+
+#define RLC(emu, reg, zflag) reg = rotate_left_circular_carry(emu, reg, zflag);
 
 /* Some very imp functions */
 
@@ -72,20 +87,43 @@ void Start(Cartridge* cart, Emulator* emu){
 }
 
 static void inc_r8(Emulator* emu, u8 oldval){
-    printf("Old val: %02x\n", oldval);
+    /* Old val is reg's value before incrementing. The actual incrementing is done after this function.*/
+    
+    modify_flag(emu, flag_z, !(oldval + 1));
+    modify_flag(emu, flag_n, 0);
+    set_flagh_add(emu, oldval, 1);
 }
 
 static void dec_r8(Emulator* emu, u8 oldval){
-    printf("Old val: %02x\n", oldval);
+    modify_flag(emu, flag_z, !(oldval - 1));
+    modify_flag(emu, flag_n, 1);
+    set_flagh_sub(emu, oldval, 1);
 }
 
-static u8 rotate_left_circular_carry_accumulator(u8 reg_value){
+static u8 rotate_left_circular_carry(Emulator* emu, u8 reg_value, bool zflag){
     /* Rotate Left Circular through Carry Accumulator */
-    u8 lastbit = reg_value;
+    u8 lastbit = reg_value >> 7;
     reg_value <<= 1;
     reg_value |= lastbit;
 
+    modify_flag(emu, flag_z, zflag ? !reg_value : 0);
+    modify_flag(emu, flag_h, 0);
+    modify_flag(emu, flag_n, 0);
+    modify_flag(emu, flag_c, lastbit);
+
     return reg_value;
+}
+
+static void add_u16_RR(Emulator* emu, res res1, res res2){
+
+    u16 rr1 = res1.entireByte;
+    u16 rr2 = res2.entireByte;
+
+    modify_flag(emu, flag_n, 0);
+    set_flagh_addu16(emu, rr1, rr2);
+    set_flagc_addu16(emu, rr1, rr2);
+
+    res1.entireByte = rr1 + rr2;
 }
 
 void dispatch(Emulator* emu){
@@ -99,10 +137,20 @@ void dispatch(Emulator* emu){
         case 0x00: break;
         case 0x01: LD_u16(emu, BC(emu)); break;
         case 0x02: LD_addr_reg(emu, read(emu, BC(emu)), A(emu)); break;
+        case 0x03: INC_RR(emu, BC(emu)); break;
         case 0x04: INC(emu, B(emu)); break;
         case 0x05: DEC(emu, B(emu)); break;
         case 0x06: LD_u8(emu, B(emu)); break;
-        case 0x07: RLCA(emu, A(emu)); break;
+        case 0x07: RLC(emu, A(emu), false); break;
+        case 0x08: {
+            u16 twobytes = read_u16(emu);
+            u16 sp = emu->SP.entireByte;
+
+            write(emu, twobytes + 1, sp >> 8);
+            write(emu, twobytes, sp & 0xff);
+            break;
+        }
+        case 0x09: add_u16_RR(emu, emu->HL, emu->BC); break;
     }
 
     emu->PC.entireByte ++;
