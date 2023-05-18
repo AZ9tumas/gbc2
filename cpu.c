@@ -19,11 +19,13 @@
 #define DE(emu) emu->DE.entireByte
 #define HL(emu) emu->HL.entireByte
 
-#define LD_u16(emu, reg) emu->reg.entireByte = read_u16(emu);
+#define LD_u8(emu, reg) reg = read(emu, emu->PC.entireByte++);
+#define LD_u16(emu, reg) reg = read_u16(emu);
 #define LD_addr_reg(emu, addr, reg) write(emu, addr,  reg);
 
 #define INC(emu, reg) inc_r8(emu, reg); reg ++;
 #define DEC(emu, reg) dec_r8(emu, reg); reg --;
+#define RLCA(emu, reg) reg = rotate_left_circular_carry_accumulator(reg);
 
 /* Some very imp functions */
 
@@ -44,7 +46,7 @@ u16 read_u16(Emulator* emu){
     return (u16)(read(emu, emu->PC.entireByte++) | (read(emu, emu->PC.entireByte++) << 8));
 }
 
-void write(Emulator* emu, u16 addr, u8 byte){
+static void write(Emulator* emu, u16 addr, u8 byte){
     if ((addr >= ECHO_RAM && addr <= ECHO_RAM_END) || (addr >= NOT_USABLE && addr <= NOT_USABLE_END)) return;
     
     if (addr >= VRAM_8KB && addr <= VRAM_8KB_END) emu->vram[addr - VRAM_8KB] = byte;
@@ -69,12 +71,21 @@ void Start(Cartridge* cart, Emulator* emu){
     }
 }
 
-void inc_r8(Emulator* emu, u8 oldval){
+static void inc_r8(Emulator* emu, u8 oldval){
     printf("Old val: %02x\n", oldval);
 }
 
-void dec_r8(Emulator* emu, u8 oldval){
+static void dec_r8(Emulator* emu, u8 oldval){
     printf("Old val: %02x\n", oldval);
+}
+
+static u8 rotate_left_circular_carry_accumulator(u8 reg_value){
+    /* Rotate Left Circular through Carry Accumulator */
+    u8 lastbit = reg_value;
+    reg_value <<= 1;
+    reg_value |= lastbit;
+
+    return reg_value;
 }
 
 void dispatch(Emulator* emu){
@@ -86,12 +97,13 @@ void dispatch(Emulator* emu){
 
     switch (opcode){
         case 0x00: break;
-        case 0x01: LD_u16(emu, BC);
-        case 0x02: LD_addr_reg(emu, read(emu, BC(emu)), A(emu));
+        case 0x01: LD_u16(emu, BC(emu)); break;
+        case 0x02: LD_addr_reg(emu, read(emu, BC(emu)), A(emu)); break;
         case 0x04: INC(emu, B(emu)); break;
         case 0x05: DEC(emu, B(emu)); break;
-        
+        case 0x06: LD_u8(emu, B(emu)); break;
+        case 0x07: RLCA(emu, A(emu)); break;
     }
 
-    emu->PC.entireByte += 1;
+    emu->PC.entireByte ++;
 }
