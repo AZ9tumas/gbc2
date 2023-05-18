@@ -1,5 +1,13 @@
 #include "cpu.h"
 
+#define INC(emu, reg, byte) \
+    inc_r8(emu, emu->reg.bytes.byte); \
+    emu->reg.bytes.byte += 1; \
+
+#define DEC(emu, reg, byte) \
+    dec_r8(emu, emu->reg.bytes.byte); \
+    emu->reg.bytes.byte -= 1; \
+
 /* Some very imp functions */
 
 u8 read(Emulator* emu, u16 addr){
@@ -34,18 +42,31 @@ void Start(Cartridge* cart, Emulator* emu){
 
     while (dispatch_count < 10) {
         dispatch_count += 1;
+        printf("\n-- DISPATCH %d --\n", dispatch_count);
         dispatch(emu);
     }
+}
+
+void inc_r8(Emulator* emu, u8 oldval){
+    printf("Old val: %02x\n", oldval);
+}
+
+void dec_r8(Emulator* emu, u8 oldval){
+    printf("Old val: %02x\n", oldval);
 }
 
 void dispatch(Emulator* emu){
 
     u8 opcode = read(emu, emu->PC.entireByte);
 
+    printInstruction(emu); /* Prints the current instruction */
+    printRegisters(emu); /* Shows what changes were made to regs after exec last instr. */
+
     switch (opcode){
-        case 0x01: printf("NOP"); break;
-        case 0x02: printf("LD BC, u16"); break;
-        case 0x03: printf("INC BC"); break;
+        case 0x00: break;
+        case 0x04: INC(emu, BC, higher); break;
+        case 0x05: DEC(emu, BC, higher); break;
+        
     }
 
     emu->PC.entireByte += 1;
