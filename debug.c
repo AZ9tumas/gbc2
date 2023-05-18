@@ -191,7 +191,7 @@ void printInstruction(Emulator* emu) {
         case 0xAD: printf("XOR L\n"); break;
         case 0xAE: printf("XOR (HL)\n"); break;
         case 0xAF: printf("XOR A\n"); break;
-        
+
         case 0xB0: printf("OR B\n"); break;
         case 0xB1: printf("OR C\n"); break;
         case 0xB2: printf("OR D\n"); break;
@@ -208,6 +208,63 @@ void printInstruction(Emulator* emu) {
         case 0xBD: printf("CP L\n"); break;
         case 0xBE: printf("CP (HL)\n"); break;
         case 0xBF: printf("CP A\n"); break;
+
+        case 0xC0: printf("RET NZ\n"); break;
+        case 0xC1: printf("POP BC\n"); break;
+        case 0xC2: printf("JP NZ, u16\n"); break;
+        case 0xC3: printf("JP u16\n"); break;
+        case 0xC4: printf("CALL NZ, u16\n"); break;
+        case 0xC5: printf("PUSH BC\n"); break;
+        case 0xC6: printf("ADD A, u8\n"); break;
+        case 0xC7: printf("RST 00H\n"); break;
+        case 0xC8: printf("RET Z\n"); break;
+        case 0xC9: printf("RET\n"); break;
+        case 0xCA: printf("JP Z, u16\n"); break;
+        case 0xCB: printf("PREFIX CB\n"); break;
+        case 0xCC: printf("CALL Z, u16\n"); break;
+        case 0xCD: printf("CALL u16\n"); break;
+        case 0xCE: printf("ADC A, u8\n"); break;
+        case 0xCF: printf("RST 08H\n"); break;
+
+        case 0xD0: printf("RET NC\n"); break;
+        case 0xD1: printf("POP DE\n"); break;
+        case 0xD2: printf("JP NC, u16\n"); break;
+        case 0xD4: printf("CALL NC, u16\n"); break;
+        case 0xD5: printf("PUSH DE\n"); break;
+        case 0xD6: printf("SUB u8\n"); break;
+        case 0xD7: printf("RST 10H\n"); break;
+        case 0xD8: printf("RET C\n"); break;
+        case 0xD9: printf("RETI\n"); break;
+        case 0xDA: printf("JP C, u16\n"); break;
+        case 0xDC: printf("CALL C, u16\n"); break;
+        case 0xDE: printf("SBC A, u8\n"); break;
+        case 0xDF: printf("RST 18H\n"); break;
+
+        case 0xE0: printf("LDH (u8), A\n"); break;
+        case 0xE1: printf("POP HL\n"); break;
+        case 0xE2: printf("LD (C), A\n"); break;
+        case 0xE5: printf("PUSH HL\n"); break;
+        case 0xE6: printf("AND u8\n"); break;
+        case 0xE7: printf("RST 20H\n"); break;
+        case 0xE8: printf("ADD SP, i8\n"); break;
+        case 0xE9: printf("JP (HL)\n"); break;
+        case 0xEA: printf("LD (u16), A\n"); break;
+        case 0xEE: printf("XOR u8\n"); break;
+        case 0xEF: printf("RST 28H\n"); break;
+
+        case 0xF0: printf("LDH A, (u8)\n"); break;
+        case 0xF1: printf("POP AF\n"); break;
+        case 0xF2: printf("LD A, (C)\n"); break;
+        case 0xF3: printf("DI\n"); break;
+        case 0xF5: printf("PUSH AF\n"); break;
+        case 0xF6: printf("OR u8\n"); break;
+        case 0xF7: printf("RST 30H\n"); break;
+        case 0xF8: printf("LD HL, SP+i8\n"); break;
+        case 0xF9: printf("LD SP, HL\n"); break;
+        case 0xFA: printf("LD A, (u16)\n"); break;
+        case 0xFB: printf("EI\n"); break;
+        case 0xFE: printf("CP u8\n"); break;
+        case 0xFF: printf("RST 38H\n"); break;
 
         default: printf("Invalid instruction\n");
     }
