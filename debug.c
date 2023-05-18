@@ -3,9 +3,10 @@
 void printInstruction(Emulator* emu){
     switch (emu->PC.entireByte) {
         
-        case 0x01: printf("NOP\n"); break;
-        case 0x02: printf("LD BC, u16"); break;
-        case 0x03: printf("LD (BC), A"); break;
+        case 0x00: printf("NOP\n"); break;
+        case 0x01: printf("LD BC, u16"); break;
+        case 0x02: printf("LD (BC), A"); break;
+        case 0x03: printf("INC BC\n"); break;
         case 0x04: printf("INC B\n"); break;
         default: printf("Invalid instruction\n");
     }
