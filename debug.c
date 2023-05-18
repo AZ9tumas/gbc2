@@ -36,6 +36,57 @@ void printInstruction(Emulator* emu) {
         case 0x1E: printf("LD E, u8\n"); break;
         case 0x1F: printf("RRA\n"); break;
 
+        case 0x20: printf("JR NZ, r8\n"); break;
+        case 0x21: printf("LD HL, u16\n"); break;
+        case 0x22: printf("LDI (HL), A\n"); break;
+        case 0x23: printf("INC HL\n"); break;
+        case 0x24: printf("INC H\n"); break;
+        case 0x25: printf("DEC H\n"); break;
+        case 0x26: printf("LD H, u8\n"); break;
+        case 0x27: printf("DAA\n"); break;
+        case 0x28: printf("JR Z, r8\n"); break;
+        case 0x29: printf("ADD HL, HL\n"); break;
+        case 0x2A: printf("LDI A, (HL)\n"); break;
+        case 0x2B: printf("DEC HL\n"); break;
+        case 0x2C: printf("INC L\n"); break;
+        case 0x2D: printf("DEC L\n"); break;
+        case 0x2E: printf("LD L, u8\n"); break;
+        case 0x2F: printf("CPL\n"); break;
+
+        case 0x30: printf("JR NC, r8\n"); break;
+        case 0x31: printf("LD SP, u16\n"); break;
+        case 0x32: printf("LDD (HL), A\n"); break;
+        case 0x33: printf("INC SP\n"); break;
+        case 0x34: printf("INC (HL)\n"); break;
+        case 0x35: printf("DEC (HL)\n"); break;
+        case 0x36: printf("LD (HL), u8\n"); break;
+        case 0x37: printf("SCF\n"); break;
+        case 0x38: printf("JR C, r8\n"); break;
+        case 0x39: printf("ADD HL, SP\n"); break;
+        case 0x3A: printf("LDD A, (HL)\n"); break;
+        case 0x3B: printf("DEC SP\n"); break;
+        case 0x3C: printf("INC A\n"); break;
+        case 0x3D: printf("DEC A\n"); break;
+        case 0x3E: printf("LD A, u8\n"); break;
+        case 0x3F: printf("CCF\n"); break;
+
+        case 0x40: printf("LD B, B\n"); break;
+        case 0x41: printf("LD B, C\n"); break;
+        case 0x42: printf("LD B, D\n"); break;
+        case 0x43: printf("LD B, E\n"); break;
+        case 0x44: printf("LD B, H\n"); break;
+        case 0x45: printf("LD B, L\n"); break;
+        case 0x46: printf("LD B, (HL)\n"); break;
+        case 0x47: printf("LD B, A\n"); break;
+        case 0x48: printf("LD C, B\n"); break;
+        case 0x49: printf("LD C, C\n"); break;
+        case 0x4A: printf("LD C, D\n"); break;
+        case 0x4B: printf("LD C, E\n"); break;
+        case 0x4C: printf("LD C, H\n"); break;
+        case 0x4D: printf("LD C, L\n"); break;
+        case 0x4E: printf("LD C, (HL)\n"); break;
+        case 0x4F: printf("LD C, A\n"); break;
+
         default: printf("Invalid instruction\n");
     }
 }
