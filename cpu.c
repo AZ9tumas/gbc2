@@ -41,8 +41,8 @@
 #define DEC(emu, reg) dec_r8(emu, reg); reg --;
 #define ADD(emu, v1, v2) 
 
-#define RLC(emu, reg, zflag) reg = rotate_left_circular_carry(emu, reg, zflag);
-#define RRC(emu, reg, zflag) reg = rotate_right_circular_carry(emu, reg, zflag);
+#define ROTATE_LEFT(emu, reg, zflag, cflag) reg = rotate_left(emu, reg, zflag, cflag);
+#define ROTATE_RIGHT(emu, reg, zflag, cflag) reg = rotate_right(emu, reg, zflag, cflag);
 
 /* Some very imp functions */
 
@@ -102,11 +102,21 @@ static void dec_r8(Emulator* emu, u8 oldval){
     set_flagh_sub(emu, oldval, 1);
 }
 
-static u8 rotate_left_circular_carry(Emulator* emu, u8 reg_value, bool zflag){
-    /* Rotate Left Circular through Carry Accumulator */
+static u8 rotate_left(Emulator* emu, u8 reg_value, bool zflag, bool carry_flag){
+
+    /* Rotate left (Circular?) with Carry - Accumulator:
+     * This function performs a bitwise left shift (by 1) on the provided register value (REG A).
+     * If the carry_flag option is enabled, it sets the most significant bit (bit 7) to the original 
+       value of the Carry flag (C).
+     * If the zflag option is disabled, the Zero flag (Z) is cleared; otherwise, it is set based 
+       on the resulting register value.
+     * 
+     * The Carry flag (C) is always set to the original value of bit 7 in all cases.
+     */
+
     u8 lastbit = reg_value >> 7;
     reg_value <<= 1;
-    reg_value |= lastbit;
+    reg_value |= carry_flag ? getflag(emu, flag_c) : lastbit;
 
     modify_flag(emu, flag_z, zflag ? !reg_value : 0);
     modify_flag(emu, flag_h, 0);
@@ -116,13 +126,22 @@ static u8 rotate_left_circular_carry(Emulator* emu, u8 reg_value, bool zflag){
     return reg_value;
 }
 
-static u8 rotate_right_circular_carry(Emulator* emu, u8 reg_value, bool zflag){
-    /* Rotate Right Circular through Carry Accumulator */
+static u8 rotate_right(Emulator* emu, u8 reg_value, bool zflag, bool carry_flag){
+
+    /* Rotate Right (Circular?) with Carry - Accumulator:
+     * This function performs a bitwise right shift (by 1) on the provided register value (REG A).
+     * If the carry_flag option is enabled, it sets the least significant bit (bit 0) to the original 
+       value of the Carry flag (C).
+     * If the zflag option is disabled, the Zero flag (Z) is cleared; otherwise, it is set based
+       on the resulting register value.
+     * 
+     * The Carry flag (C) is always set to the original value of bit 0 in all cases.
+     */
 
     u8 firstbit = reg_value & 1;
 
     reg_value >>= 1;
-    reg_value |= firstbit << 7;
+    reg_value |= (carry_flag ? getflag(emu, flag_c) : firstbit) << 7;
 
     modify_flag(emu, flag_z, zflag ? !reg_value : 0);
     modify_flag(emu, flag_h, 0);
@@ -159,7 +178,7 @@ void dispatch(Emulator* emu){
         case 0x04: INC(emu, B(emu)); break;
         case 0x05: DEC(emu, B(emu)); break;
         case 0x06: LD_u8(emu, B(emu)); break;
-        case 0x07: RLC(emu, A(emu), false); break;
+        case 0x07: ROTATE_LEFT(emu, A(emu), false, false); break;
         case 0x08: {
             u16 twobytes = read_u16(emu);
             u16 sp = emu->SP.entireByte;
@@ -174,7 +193,25 @@ void dispatch(Emulator* emu){
         case 0x0C: INC(emu, C(emu)); break;
         case 0x0D: DEC(emu, C(emu)); break;
         case 0x0E: LD_u8(emu, C(emu)); break;
-        case 0x0F: RRC(emu, A(emu), false); break;
+        case 0x0F: ROTATE_RIGHT(emu, A(emu), false, false); break;
+
+        case 0x10: break;
+        case 0x11: LD_u16(emu, DE(emu)); break;
+        case 0x12: LD_addr_reg(emu, read(emu, DE(emu)), A(emu)); break;
+        case 0x13: INC_RR(emu, DE(emu)); break;
+        case 0x14: INC(emu, D(emu)); break;
+        case 0x15: DEC(emu, D(emu)); break;
+        case 0x16: LD_u8(emu, D(emu)); break;
+        case 0x17: ROTATE_LEFT(emu, A(emu), false, true); break;
+        case 0x18: break;
+        case 0x19: add_u16_RR(emu, emu->HL, emu->DE); break;
+        case 0x1A: LD_R_u8(emu, A(emu), read(emu, DE(emu))); break;  // LD A, (BC)
+        case 0x1B: DEC_RR(emu, DE(emu)); break;
+        case 0x1C: INC(emu, E(emu)); break;
+        case 0x1D: DEC(emu, E(emu)); break;
+        case 0x1E: LD_u8(emu, E(emu)); break;
+        case 0x1F: ROTATE_RIGHT(emu, A(emu), false, true); break;
+
     }
 
     emu->PC.entireByte ++;

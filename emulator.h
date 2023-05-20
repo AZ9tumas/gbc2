@@ -36,5 +36,6 @@ typedef struct {
 
 Emulator* initEmulator(Emulator* emu);
 void modify_flag(Emulator* emu, flags flag, u8 val);
+u8 getflag(Emulator* emu, flags flag);
 
 #endif

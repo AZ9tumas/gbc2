@@ -24,3 +24,7 @@ Emulator* initEmulator(Emulator* emu){
 void modify_flag(Emulator* emu, flags flag, u8 value){
     emu->AF.bytes.lower &= ~(1 << flag); emu->AF.bytes.lower |= value << flag;
 }
+
+u8 getflag(Emulator* emu, flags flag){
+    return (emu->AF.bytes.lower >> (flag + 4) & 1);
+}
