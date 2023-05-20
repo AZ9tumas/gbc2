@@ -29,7 +29,7 @@
 #define set_flagc_subu16(emu, v1, v2) modify_flag(emu, flag_c, ((int)(v1) - (int)(v2)) < 0 ? 1 : 0)
 #define set_flagc_sub(emu, v1, v2) modify_flag(emu, flag_c, ((int)(v1) - (int)(v2)) < 0 ? 1 : 0)
 
-#define LD_u8(emu, reg) reg = read(emu, emu->PC.entireByte++);
+#define LD_u8(emu, reg) reg = read_u8(emu);
 #define LD_u16(emu, reg) reg = read_u16(emu);
 #define LD_addr_reg(emu, addr, reg) write(emu, addr,  reg);
 #define LD_R_u8(emu, reg, u_8) reg = u_8;
@@ -39,6 +39,8 @@
 
 #define INC(emu, reg) inc_r8(emu, reg); reg ++;
 #define DEC(emu, reg) dec_r8(emu, reg); reg --;
+
+#define JUMP(emu, u_8) emu->PC.entireByte += (u8)u_8;
 #define ADD(emu, v1, v2) 
 
 #define ROTATE_LEFT(emu, reg, zflag, cflag) reg = rotate_left(emu, reg, zflag, cflag);
@@ -61,6 +63,10 @@ u8 read(Emulator* emu, u16 addr){
 
 u16 read_u16(Emulator* emu){
     return (u16)(read(emu, emu->PC.entireByte++) | (read(emu, emu->PC.entireByte++) << 8));
+}
+
+u8 read_u8(Emulator* emu){
+    return (u8)(read(emu, emu->PC.entireByte ++));
 }
 
 static void write(Emulator* emu, u16 addr, u8 byte){
@@ -203,7 +209,7 @@ void dispatch(Emulator* emu){
         case 0x15: DEC(emu, D(emu)); break;
         case 0x16: LD_u8(emu, D(emu)); break;
         case 0x17: ROTATE_LEFT(emu, A(emu), false, true); break;
-        case 0x18: break;
+        case 0x18: JUMP(emu, read_u8(emu));
         case 0x19: add_u16_RR(emu, emu->HL, emu->DE); break;
         case 0x1A: LD_R_u8(emu, A(emu), read(emu, DE(emu))); break;  // LD A, (BC)
         case 0x1B: DEC_RR(emu, DE(emu)); break;
