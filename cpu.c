@@ -209,7 +209,7 @@ void dispatch(Emulator* emu){
         case 0x15: DEC(emu, D(emu)); break;
         case 0x16: LD_u8(emu, D(emu)); break;
         case 0x17: ROTATE_LEFT(emu, A(emu), false, true); break;
-        case 0x18: JUMP(emu, read_u8(emu));
+        case 0x18: JUMP(emu, read_u8(emu)); break;
         case 0x19: add_u16_RR(emu, emu->HL, emu->DE); break;
         case 0x1A: LD_R_u8(emu, A(emu), read(emu, DE(emu))); break;  // LD A, (BC)
         case 0x1B: DEC_RR(emu, DE(emu)); break;
@@ -217,7 +217,7 @@ void dispatch(Emulator* emu){
         case 0x1D: DEC(emu, E(emu)); break;
         case 0x1E: LD_u8(emu, E(emu)); break;
         case 0x1F: ROTATE_RIGHT(emu, A(emu), false, true); break;
-
+        
     }
 
     emu->PC.entireByte ++;
