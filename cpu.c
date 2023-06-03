@@ -29,6 +29,12 @@
 #define set_flagc_subu16(emu, v1, v2) modify_flag(emu, flag_c, ((int)(v1) - (int)(v2)) < 0 ? 1 : 0)
 #define set_flagc_sub(emu, v1, v2) modify_flag(emu, flag_c, ((int)(v1) - (int)(v2)) < 0 ? 1 : 0)
 
+/* Flag conditions */
+#define CONDITION_NZ(emu) getflag(emu, flag_z) != 1
+#define CONDITION_NC(emu) getflag(emu, flag_c) != 1
+#define CONDITION_Z(emu) getflag(emu, flag_z) == 1
+#define CONDITION_C(emu) getflag(emu, flag_z) == 1
+
 #define LD_u8(emu, reg) reg = read_u8(emu);
 #define LD_u16(emu, reg) reg = read_u16(emu);
 #define LD_addr_reg(emu, addr, reg) write(emu, addr,  reg);
@@ -169,6 +175,15 @@ static void add_u16_RR(Emulator* emu, res res1, res res2){
     res1.entireByte = rr1 + rr2;
 }
 
+static void jump_relative_condition(Emulator* emu, bool condition_status){
+    int8_t jp_count = (int8_t) read_u8(emu); /* 4 cycles */
+    if (condition_status){
+        emu->PC.entireByte += jp_count;
+
+        /* 4 Cycles */
+    }
+}
+
 void dispatch(Emulator* emu){
 
     u8 opcode = read(emu, emu->PC.entireByte);
@@ -217,6 +232,8 @@ void dispatch(Emulator* emu){
         case 0x1D: DEC(emu, E(emu)); break;
         case 0x1E: LD_u8(emu, E(emu)); break;
         case 0x1F: ROTATE_RIGHT(emu, A(emu), false, true); break;
+
+        case 0x20: jump_relative_condition(emu, CONDITION_NZ(emu)); /* Jump relative to a given condition  */
         
     }
 
