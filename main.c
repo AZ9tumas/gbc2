@@ -21,7 +21,7 @@ int main(int argc, char* argv[]){
         fseek(file, 0, SEEK_END);
         long size = ftell(file);
         fseek(file, 0, SEEK_SET);
-
+        
         uint8_t* memory = (uint8_t*)malloc(size);
         size_t e = fread(memory, size, 1, file);
         fclose(file);

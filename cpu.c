@@ -163,6 +163,47 @@ static u8 rotate_right(Emulator* emu, u8 reg_value, bool zflag, bool carry_flag)
     return reg_value;
 }
 
+static void decimal_adjust_accumulator(Emulator* emu){
+
+    /* Decimal Adjust Accumulator 
+     * This instruction is known by other names, such as "decimal adjust", or simply "DDA".
+     * Since BCD arithmetic is supported, this representation of numbers must remain valid and
+       properly. 
+     * BCD Arithmetic means that numbers can be represented and manipulated in decimal format 
+       using two decimal digits per byte. This instruction ensures that BCD operation is properly
+       formatted. BCD stands for "Binary coded decimal".
+    
+    ** How the decimal adjust works **
+    
+      * If the least significant 4 bits of register A are greater than 9, or the half carry flag (H) is
+      set, 6 is added to the accumulator.
+      * If the most significant 4 bigs of register A are greater than 9 or if the carry flag (C) is 
+      set, then 0x60 (96 in base 10) is added to the accumulator.
+      * If the substract flag (N) is set, the above adjustments are substracted instead of added.
+
+    ** For more information regarding this, visit : 'https://ehaskins.com/2018-01-30%20Z80%20DAA/'
+    */
+
+
+    u8 val = A(emu);
+
+    if (getflag(emu, flag_n)) {
+
+        if (getflag(emu, flag_h)) val -= 0x06;
+        if (getflag(emu, flag_c)) val -= 0x60;
+
+    } else {
+
+        if (getflag(emu, flag_h) || (val & 0xf) > 0x9){
+            u8 orginal = val;
+            val += 0x6;
+
+            if (orginal > val) modify_flag(memccpy)
+        }
+
+    }
+}
+
 static void add_u16_RR(Emulator* emu, res res1, res res2){
 
     u16 rr1 = res1.entireByte;
@@ -179,7 +220,6 @@ static void jump_relative_condition(Emulator* emu, bool condition_status){
     int8_t jp_count = (int8_t) read_u8(emu); /* 4 cycles */
     if (condition_status){
         emu->PC.entireByte += jp_count;
-
         /* 4 Cycles */
     }
 }
@@ -234,7 +274,13 @@ void dispatch(Emulator* emu){
         case 0x1F: ROTATE_RIGHT(emu, A(emu), false, true); break;
 
         case 0x20: jump_relative_condition(emu, CONDITION_NZ(emu)); /* Jump relative to a given condition  */
-        
+        case 0x21: LD_u16(emu, HL(emu)); break;
+        case 0x22: LD_addr_reg(emu, read(emu, HL(emu)), A(emu)); INC_RR(emu, HL(emu)); break;
+        case 0x23: INC_RR(emu, HL(emu)); break;
+        case 0x24: INC(emu, H(emu)); break;
+        case 0x25: DEC(emu, H(emu)); break;
+        case 0x26: LD_u8(emu, H(emu)); break;
+        case 0x27: decimal_adjust(emu); break;
     }
 
     emu->PC.entireByte ++;
