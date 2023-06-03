@@ -21,6 +21,7 @@
 
 /* Flags */
 
+#define set_flagz(emu, v1) modify_flag(emu, flag_z, !v1);
 #define set_flagh_add(emu, v1, v2) modify_flag(emu, flag_h, (((uint32_t)v1 & 0xf) + ((uint32_t)v2 & 0xf) > 0xf) ? 1 : 0);
 #define set_flagh_sub(emu, v1, v2) modify_flag(emu, flag_h, ((v1 & 0xf) - (v2 & 0xf) & 0x10) ? 1 : 0)
 #define set_flagh_addu16(emu, v1, v2) modify_flag(emu, flag_h, (((uint32_t)v1 & 0xfff) + ((uint32_t)v2 & 0xfff) > 0xfff) ? 0 : 1)
@@ -198,10 +199,25 @@ static void decimal_adjust_accumulator(Emulator* emu){
             u8 orginal = val;
             val += 0x6;
 
-            if (orginal > val) modify_flag(memccpy)
+            if (orginal > val) modify_flag(emu, flag_c, 1);
         }
 
+        if (getflag(emu, flag_c) || val > 0x9f) val += 0x60; modify_flag(emu, flag_c, 1);
     }
+
+    set_flagz(emu, val);
+    modify_flag(emu, flag_h, 0);
+    A(emu) = val;
+}
+
+static void complement(Emulator* emu){
+    /* Also known as "Complement", this instruction is used to flip values of all 
+        bits in accumulator. */
+    
+    A(emu) = ~A(emu);
+
+    modify_flag(emu, flag_n, 1);
+    modify_flag(emu, flag_h, 1);
 }
 
 static void add_u16_RR(Emulator* emu, res res1, res res2){
@@ -273,7 +289,7 @@ void dispatch(Emulator* emu){
         case 0x1E: LD_u8(emu, E(emu)); break;
         case 0x1F: ROTATE_RIGHT(emu, A(emu), false, true); break;
 
-        case 0x20: jump_relative_condition(emu, CONDITION_NZ(emu)); /* Jump relative to a given condition  */
+        case 0x20: jump_relative_condition(emu, CONDITION_NZ(emu)); break; /* Jump relative to a given condition  */
         case 0x21: LD_u16(emu, HL(emu)); break;
         case 0x22: LD_addr_reg(emu, read(emu, HL(emu)), A(emu)); INC_RR(emu, HL(emu)); break;
         case 0x23: INC_RR(emu, HL(emu)); break;
@@ -281,6 +297,14 @@ void dispatch(Emulator* emu){
         case 0x25: DEC(emu, H(emu)); break;
         case 0x26: LD_u8(emu, H(emu)); break;
         case 0x27: decimal_adjust(emu); break;
+        case 0x28: jump_relative_condition(emu, CONDITION_Z(emu)); break;
+        case 0x29: add_u16_RR(emu, emu->HL, emu->HL); break;
+        case 0x2A: LD_R_u8(emu, A(emu), read(emu, DE(emu))); INC_RR(emu, HL(emu)); break;
+        case 0x2B: DEC_RR(emu, HL(emu)); break;
+        case 0x2C: INC(emu, L(emu)); break;
+        case 0x2D: DEC(emu, L(emu)); break;
+        case 0x2E: LD_u8(emu, L(emu)); break;
+        case 0x2F: complement(emu); break;
     }
 
     emu->PC.entireByte ++;
