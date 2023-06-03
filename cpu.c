@@ -211,13 +211,28 @@ static void decimal_adjust_accumulator(Emulator* emu){
 }
 
 static void complement(Emulator* emu){
-    /* Also known as "Complement", this instruction is used to flip values of all 
+    /* Also known as "cpl", this instruction is used to flip values of all 
         bits in accumulator. */
     
     A(emu) = ~A(emu);
 
     modify_flag(emu, flag_n, 1);
     modify_flag(emu, flag_h, 1);
+}
+
+static void complement_carry(Emulator* emu){
+    /* Also known as "ccf", which stands for "Carry flag complement".
+    
+    1. Complements the carry flag: If the carry flag is set (1),
+     it is cleared (0), and if it is cleared (0), it is set (1).
+    2. The half-carry flag (H) is reset to 0.
+    3. The half-carry flag (H) is reset to 0.
+
+     */
+
+    modify_flag(emu, flag_c, !getflag(emu, flag_c));
+    modify_flag(emu, flag_n, 0);
+    modify_flag(emu, flag_h, 0);
 }
 
 static void add_u16_RR(Emulator* emu, res res1, res res2){
@@ -299,12 +314,53 @@ void dispatch(Emulator* emu){
         case 0x27: decimal_adjust(emu); break;
         case 0x28: jump_relative_condition(emu, CONDITION_Z(emu)); break;
         case 0x29: add_u16_RR(emu, emu->HL, emu->HL); break;
-        case 0x2A: LD_R_u8(emu, A(emu), read(emu, DE(emu))); INC_RR(emu, HL(emu)); break;
+        case 0x2A: LD_R_u8(emu, A(emu), read(emu, HL(emu))); INC_RR(emu, HL(emu)); break;
         case 0x2B: DEC_RR(emu, HL(emu)); break;
         case 0x2C: INC(emu, L(emu)); break;
         case 0x2D: DEC(emu, L(emu)); break;
         case 0x2E: LD_u8(emu, L(emu)); break;
         case 0x2F: complement(emu); break;
+
+        case 0x30: jump_relative_condition(emu, CONDITION_NC(emu)); break;
+        case 0x31: LD_u16(emu, emu->SP.entireByte); break;
+        case 0x32: LD_addr_reg(emu, read(emu, HL(emu)), A(emu)); DEC_RR(emu, HL(emu)); break;
+        case 0x33: INC_RR(emu, emu->SP.entireByte); break;
+        case 0x34: {
+            /* INC (HL) */
+            u16 addr = HL(emu);
+            u8 old = read(emu, addr);
+            u8 new = old + 1;
+            write(emu, addr, new);
+
+            set_flagz(emu, new);
+            set_flagh_addu16(emu, old, 1);
+            modify_flag(emu, flag_n, 0);
+
+            break;
+        }
+        case 0x35: {
+            /* DEC (HL) */
+            u16 addr = HL(emu);
+            u8 old = read(emu, addr);
+            u8 new = old - 1;
+            write(emu, addr, new);
+
+            set_flagz(emu, new);
+            set_flagc_subu16(emu, old, 1);
+            modify_flag(emu, flag_n, 1);
+
+            break;
+        }
+        case 0x36: LD_addr_reg(emu, read(emu, HL(emu)), read_u8(emu)); break;
+        case 0x27: decimal_adjust(emu); break;
+        case 0x38: jump_relative_condition(emu, CONDITION_C(emu)); break;
+        case 0x39: add_u16_RR(emu, emu->HL, emu->SP); break;
+        case 0x3A: LD_R_u8(emu, A(emu), read(emu, HL(emu))); DEC_RR(emu, HL(emu)); break;
+        case 0x3B: DEC_RR(emu, emu->SP.entireByte); break;
+        case 0x3C: INC(emu, A(emu)); break;
+        case 0x3D: DEC(emu, A(emu)); break;
+        case 0x3E: LD_u8(emu, A(emu)); break;
+        case 0x3F: complement_carry(emu); break;
     }
 
     emu->PC.entireByte ++;
