@@ -26,7 +26,7 @@
 #define set_flagh_sub(emu, v1, v2) modify_flag(emu, flag_h, ((v1 & 0xf) - (v2 & 0xf) & 0x10) ? 1 : 0)
 #define set_flagh_addu16(emu, v1, v2) modify_flag(emu, flag_h, (((uint32_t)v1 & 0xfff) + ((uint32_t)v2 & 0xfff) > 0xfff) ? 0 : 1)
 #define set_flagc_addu16(emu, v1, v2) modify_flag(emu, flag_c, ((uint32_t)(v1) + (uint32_t)(v2)) > 0xFFFF ? 1 : 0)
-#define set_flagc_add(emu, v1, v2) modify_flag(emu, flag_c, ((uint16_t)(v1) + (uint16_t)(v2)) > 0xFF ? 1 : 0)
+#define set_flagc_add(emu, v1, v2) modify_flag(emu, flag_c, ((u16)(v1) + (u16)(v2)) > 0xFF ? 1 : 0)
 #define set_flagc_subu16(emu, v1, v2) modify_flag(emu, flag_c, ((int)(v1) - (int)(v2)) < 0 ? 1 : 0)
 #define set_flagc_sub(emu, v1, v2) modify_flag(emu, flag_c, ((int)(v1) - (int)(v2)) < 0 ? 1 : 0)
 
@@ -230,7 +230,7 @@ static void complement_carry(Emulator* emu){
     2. The half-carry flag (H) is reset to 0.
     3. The half-carry flag (H) is reset to 0.
 
-     */
+    */
 
     modify_flag(emu, flag_c, !getflag(emu, flag_c));
     modify_flag(emu, flag_n, 0);
@@ -275,11 +275,7 @@ static void test_adc_hc_flags(Emulator* emu, u8 old, u8 toAdd, u8 result, u8 car
      * 2. When the lower nibble of the result is added to the lower nibble of the carry flag.
      * We check for the occurrence of a Half Carry in both cases. */
 
-    if (((old & 0xF) + (toAdd & 0xF)) > 0xF)
-        halfCarryOccurred = true;
-
-    if (((result & 0xF) + (carry & 0xF)) > 0xF)
-        halfCarryOccurred = true;
+    if ((old & 0xF) + (toAdd & 0xF) > 0xF || (result & 0xF) + (carry & 0xF) > 0xF) halfCarryOccurred = true;
 
     /* Carry (C) flag:
      * The Carry flag is set when there is an integer overflow during an 8-bit addition.
@@ -287,15 +283,28 @@ static void test_adc_hc_flags(Emulator* emu, u8 old, u8 toAdd, u8 result, u8 car
      * involving the carry flag. If the sum exceeds the maximum value of 8 bits (0xFF),
      * a Carry is considered to have occurred. */
 
-    if (((uint16_t)old + (uint16_t)toAdd) > 0xFF)
-        carryOccurred = true;
+    if ((u16)old + (u16)toAdd > 0xFF || (u16)result + (u16)carry > 0xFF) carryOccurred = true;
 
-    if (((uint16_t)result + (uint16_t)carry) > 0xFF)
-        carryOccurred = true;
-
-    // Set the Half Carry (H) and Carry (C) flags based on the calculated results
+    /* Set the Half Carry (H) and Carry (C) flags based on the calculated results */
     modify_flag(emu, flag_h, halfCarryOccurred);
     modify_flag(emu, flag_c, carryOccurred);
+}
+
+static void test_sbc_hc_flags(Emulator* emu, u8 old, u8 toSub, u8 result, u8 carry){
+    bool halfCarryOccured = false;
+    bool carryOccured = false;
+
+    u8 oldLow = old & 0xF;
+    u8 resultLow = result & 0xF;
+
+    if ((u8)(oldLow - (toSub & 0xF)) > oldLow) halfCarryOccured = true;
+    if ((u8)(resultLow - carry) > resultLow) halfCarryOccured = true;
+
+    if ((u8)((u16)old - (u16)toSub) > old) carryOccured = true;
+    if ((u8)((u16)result - carry) > result) carryOccured = true;
+
+    modify_flag(emu, flag_h, halfCarryOccured);
+    modify_flag(emu, flag_c, carryOccured);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -318,7 +327,7 @@ static u8 add_u8_u8(Emulator* emu, u8 val1, u8 val2){
 static u8 adc_u8_u8(Emulator* emu, u8 val1, u8 val2) {
     /* ADC (Add with Carry) instructions are used to add reg / immediate values
      * with the carry flag
-     */
+    */
 
     u8 carry = getflag(emu, flag_c);
     u8 result = val1 + val2 + carry;
@@ -329,6 +338,81 @@ static u8 adc_u8_u8(Emulator* emu, u8 val1, u8 val2) {
     test_adc_hc_flags(emu, val1, val2, result - carry, carry);
 
     return result;
+}
+
+static u8 sub_u8_u8(Emulator* emu, u8 val1, u8 val2){
+    /* Subtract instructions are used to subtract reg / immediate values 
+     * Used to perform arithmetic operations by cpu
+    */
+
+    u8 result = val1 - val2;
+
+    set_flagz(emu, result);
+    modify_flag(emu, flag_n, 1);
+    set_flagh_sub(emu, val1, val2);
+    set_flagc_sub(emu, val1, val2);
+
+    return result;
+}
+
+static u8 sbc_u8_u8(Emulator* emu, u8 val1, u8 val2){
+    /* SBC (Subtract with carry) instructions are used to subtract reg / immediate values 
+     * Used to perform arithmetic operations by cpu
+    */
+
+    u8 carry = getflag(emu, flag_c);
+    u8 result = val1 - val2 - carry;
+
+    set_flagz(emu, result);
+    modify_flag(emu, flag_n, 1);
+    test_sbc_hc_flags(emu, val1, val2, result + carry, carry);
+
+    return result;
+}
+
+static u8 and_u8_u8(Emulator* emu, u8 val1, u8 val2){
+    u8 result = val1 & val2;
+
+    set_flagz(emu, result);
+    
+    modify_flag(emu, flag_n, 0);
+    modify_flag(emu, flag_h, 1);
+    modify_flag(emu, flag_c, 0);
+
+    return result;
+}
+
+static u8 xor_u8_u8(Emulator* emu, u8 val1, u8 val2){
+    u8 result = val1 ^ val2;
+
+    set_flagz(emu, result);
+    
+    modify_flag(emu, flag_n, 0);
+    modify_flag(emu, flag_h, 0);
+    modify_flag(emu, flag_c, 0);
+
+    return result;
+}
+
+static u8 or_u8_u8(Emulator* emu, u8 val1, u8 val2){
+    u8 result = val1 | val2;
+
+    set_flagz(emu, result);
+    
+    modify_flag(emu, flag_n, 0);
+    modify_flag(emu, flag_h, 0);
+    modify_flag(emu, flag_c, 0);
+
+    return result;
+}
+
+static void cp_u8_u8(Emulator* emu, u8 val1, u8 val2){
+    u8 result = val1 - val2;
+    
+    modify_flag(emu, flag_n, 1);
+
+    set_flagh_sub(emu, val1, val2);
+    set_flagc_sub(emu, val1, val2);
 }
 
 static void jump_relative_condition(Emulator* emu, bool condition_status){
@@ -586,6 +670,8 @@ void dispatch(Emulator* emu){
         case 0xBD: cp_u8_u8(emu, A(emu), L(emu)); break;
         case 0xBE: cp_u8_u8(emu, A(emu), read(emu, HL(emu))); break;
         case 0xBF: cp_u8_u8(emu, A(emu), A(emu)); break;
+
+        case 0xCE: A(emu) = adc_u8_u8(emu, A(emu), read_u8(emu)); break;
 
     }
 
