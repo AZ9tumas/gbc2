@@ -260,6 +260,77 @@ static void add_u16_RR(Emulator* emu, res res1, res res2){
     res1.entireByte = rr1 + rr2;
 }
 
+static void test_adc_hc_flags(Emulator* emu, u8 old, u8 toAdd, u8 result, u8 carry) {
+    /* ADC (Add with Carry) has a slightly different behavior compared to regular addition.
+     * It adds the carry flag to the result, which introduces additional considerations for
+     * evaluating the Half Carry (H) and Carry (C) flags. In this custom test function, we
+     * carefully examine the relevant conditions for the flags. */
+
+    bool halfCarryOccurred = false;  // Variable to track if a Half Carry (H) occurred
+    bool carryOccurred = false;      // Variable to track if a Carry (C) occurred
+
+    /* Half Carry (H) flag:
+     * The Half Carry flag can occur in two cases:
+     * 1. When the lower nibble of the initial value is added to the lower nibble of the value to be added.
+     * 2. When the lower nibble of the result is added to the lower nibble of the carry flag.
+     * We check for the occurrence of a Half Carry in both cases. */
+
+    if (((old & 0xF) + (toAdd & 0xF)) > 0xF)
+        halfCarryOccurred = true;
+
+    if (((result & 0xF) + (carry & 0xF)) > 0xF)
+        halfCarryOccurred = true;
+
+    /* Carry (C) flag:
+     * The Carry flag is set when there is an integer overflow during an 8-bit addition.
+     * We calculate the overflow separately for both the initial addition and the addition
+     * involving the carry flag. If the sum exceeds the maximum value of 8 bits (0xFF),
+     * a Carry is considered to have occurred. */
+
+    if (((uint16_t)old + (uint16_t)toAdd) > 0xFF)
+        carryOccurred = true;
+
+    if (((uint16_t)result + (uint16_t)carry) > 0xFF)
+        carryOccurred = true;
+
+    // Set the Half Carry (H) and Carry (C) flags based on the calculated results
+    modify_flag(emu, flag_h, halfCarryOccurred);
+    modify_flag(emu, flag_c, carryOccurred);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+static u8 add_u8_u8(Emulator* emu, u8 val1, u8 val2){
+    /* Add instructions are used to add reg / immediate values 
+     * Used to perform arithmetic operations by cpu
+    */
+
+    u8 result = val1 + val2;
+
+    set_flagz(emu, result);
+    modify_flag(emu, flag_n, 0);
+    set_flagh_add(emu, val1, val2);
+    set_flagc_add(emu, val1, val2);
+
+    return result;
+}
+
+static u8 adc_u8_u8(Emulator* emu, u8 val1, u8 val2) {
+    /* ADC (Add with Carry) instructions are used to add reg / immediate values
+     * with the carry flag
+     */
+
+    u8 carry = getflag(emu, flag_c);
+    u8 result = val1 + val2 + carry;
+
+    set_flagz(emu, result);
+    modify_flag(emu, flag_n, 0);
+
+    test_adc_hc_flags(emu, val1, val2, result - carry, carry);
+
+    return result;
+}
+
 static void jump_relative_condition(Emulator* emu, bool condition_status){
     int8_t jp_count = (int8_t) read_u8(emu); /* 4 cycles */
     if (condition_status){
@@ -447,6 +518,74 @@ void dispatch(Emulator* emu){
         case 0x7D: LD_RR(emu, A(emu), L(emu)); break;
         case 0x7E: LD_RR(emu, A(emu), read(emu, HL(emu))); break;
         case 0x7F: LD_RR(emu, A(emu), A(emu)); break;
+
+        case 0x80: A(emu) = add_u8_u8(emu, A(emu), B(emu)); break;
+        case 0x81: A(emu) = add_u8_u8(emu, A(emu), C(emu)); break;
+        case 0x82: A(emu) = add_u8_u8(emu, A(emu), D(emu)); break;
+        case 0x83: A(emu) = add_u8_u8(emu, A(emu), E(emu)); break;
+        case 0x84: A(emu) = add_u8_u8(emu, A(emu), H(emu)); break;
+        case 0x85: A(emu) = add_u8_u8(emu, A(emu), L(emu)); break;
+        case 0x86: A(emu) = add_u8_u8(emu, A(emu), read(emu, HL(emu))); break;
+        case 0x87: A(emu) = add_u8_u8(emu, A(emu), A(emu)); break;
+        case 0x88: A(emu) = adc_u8_u8(emu, A(emu), B(emu)); break;
+        case 0x89: A(emu) = adc_u8_u8(emu, A(emu), C(emu)); break;
+        case 0x8A: A(emu) = adc_u8_u8(emu, A(emu), D(emu)); break;
+        case 0x8B: A(emu) = adc_u8_u8(emu, A(emu), E(emu)); break;
+        case 0x8C: A(emu) = adc_u8_u8(emu, A(emu), H(emu)); break;
+        case 0x8D: A(emu) = adc_u8_u8(emu, A(emu), L(emu)); break;
+        case 0x8E: A(emu) = adc_u8_u8(emu, A(emu), read(emu, HL(emu))); break;
+        case 0x8F: A(emu) = adc_u8_u8(emu, A(emu), A(emu)); break;
+
+        case 0x90: A(emu) = sub_u8_u8(emu, A(emu), B(emu)); break;
+        case 0x91: A(emu) = sub_u8_u8(emu, A(emu), C(emu)); break;
+        case 0x92: A(emu) = sub_u8_u8(emu, A(emu), D(emu)); break;
+        case 0x93: A(emu) = sub_u8_u8(emu, A(emu), E(emu)); break;
+        case 0x94: A(emu) = sub_u8_u8(emu, A(emu), H(emu)); break;
+        case 0x95: A(emu) = sub_u8_u8(emu, A(emu), L(emu)); break;
+        case 0x96: A(emu) = sub_u8_u8(emu, A(emu), read(emu, HL(emu))); break;
+        case 0x97: A(emu) = sub_u8_u8(emu, A(emu), A(emu)); break;
+        case 0x98: A(emu) = sbc_u8_u8(emu, A(emu), B(emu)); break;
+        case 0x99: A(emu) = sbc_u8_u8(emu, A(emu), C(emu)); break;
+        case 0x9A: A(emu) = sbc_u8_u8(emu, A(emu), D(emu)); break;
+        case 0x9B: A(emu) = sbc_u8_u8(emu, A(emu), E(emu)); break;
+        case 0x9C: A(emu) = sbc_u8_u8(emu, A(emu), H(emu)); break;
+        case 0x9D: A(emu) = sbc_u8_u8(emu, A(emu), L(emu)); break;
+        case 0x9E: A(emu) = sbc_u8_u8(emu, A(emu), read(emu, HL(emu))); break;
+        case 0x9F: A(emu) = sbc_u8_u8(emu, A(emu), A(emu)); break;
+
+        case 0xA0: A(emu) = and_u8_u8(emu, A(emu), B(emu)); break;
+        case 0xA1: A(emu) = and_u8_u8(emu, A(emu), C(emu)); break;
+        case 0xA2: A(emu) = and_u8_u8(emu, A(emu), D(emu)); break;
+        case 0xA3: A(emu) = and_u8_u8(emu, A(emu), E(emu)); break;
+        case 0xA4: A(emu) = and_u8_u8(emu, A(emu), H(emu)); break;
+        case 0xA5: A(emu) = and_u8_u8(emu, A(emu), L(emu)); break;
+        case 0xA6: A(emu) = and_u8_u8(emu, A(emu), read(emu, HL(emu))); break;
+        case 0xA7: A(emu) = and_u8_u8(emu, A(emu), A(emu)); break;
+        case 0xA8: A(emu) = xor_u8_u8(emu, A(emu), B(emu)); break;
+        case 0xA9: A(emu) = xor_u8_u8(emu, A(emu), C(emu)); break;
+        case 0xAA: A(emu) = xor_u8_u8(emu, A(emu), D(emu)); break;
+        case 0xAB: A(emu) = xor_u8_u8(emu, A(emu), E(emu)); break;
+        case 0xAC: A(emu) = xor_u8_u8(emu, A(emu), H(emu)); break;
+        case 0xAD: A(emu) = xor_u8_u8(emu, A(emu), L(emu)); break;
+        case 0xAE: A(emu) = xor_u8_u8(emu, A(emu), read(emu, HL(emu))); break;
+        case 0xAF: A(emu) = xor_u8_u8(emu, A(emu), A(emu)); break;
+
+        case 0xB0: A(emu) = or_u8_u8(emu, A(emu), B(emu)); break;
+        case 0xB1: A(emu) = or_u8_u8(emu, A(emu), C(emu)); break;
+        case 0xB2: A(emu) = or_u8_u8(emu, A(emu), D(emu)); break;
+        case 0xB3: A(emu) = or_u8_u8(emu, A(emu), E(emu)); break;
+        case 0xB4: A(emu) = or_u8_u8(emu, A(emu), H(emu)); break;
+        case 0xB5: A(emu) = or_u8_u8(emu, A(emu), L(emu)); break;
+        case 0xB6: A(emu) = or_u8_u8(emu, A(emu), read(emu, HL(emu))); break;
+        case 0xB7: A(emu) = or_u8_u8(emu, A(emu), A(emu)); break;
+        case 0xB8: cp_u8_u8(emu, A(emu), B(emu)); break;
+        case 0xB9: cp_u8_u8(emu, A(emu), C(emu)); break;
+        case 0xBA: cp_u8_u8(emu, A(emu), D(emu)); break;
+        case 0xBB: cp_u8_u8(emu, A(emu), E(emu)); break;
+        case 0xBC: cp_u8_u8(emu, A(emu), H(emu)); break;
+        case 0xBD: cp_u8_u8(emu, A(emu), L(emu)); break;
+        case 0xBE: cp_u8_u8(emu, A(emu), read(emu, HL(emu))); break;
+        case 0xBF: cp_u8_u8(emu, A(emu), A(emu)); break;
 
     }
 
