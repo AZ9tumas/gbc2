@@ -381,7 +381,7 @@ void dispatch(Emulator* emu){
         case 0x17: ROTATE_LEFT(emu, A(emu), false, true); break;
         case 0x18: JUMP(emu, read_u8(emu)); break;
         case 0x19: add_u16_RR(emu, emu->HL, emu->DE); break;
-        case 0x1A: LD_R_u8(emu, A(emu), read(emu, DE(emu))); break;  // LD A, (BC)
+        case 0x1A: LD_R_u8(emu, A(emu), read(emu, DE(emu))); break;  // LD A, (DE)
         case 0x1B: DEC_RR(emu, DE(emu)); break;
         case 0x1C: INC(emu, E(emu)); break;
         case 0x1D: DEC(emu, E(emu)); break;
