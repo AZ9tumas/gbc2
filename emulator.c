@@ -17,6 +17,8 @@ Emulator* initEmulator(Emulator* emu){
 
     emu->PC.entireByte = 0x100;
     emu->SP.entireByte = 0xfffe;
+    
+    emu->run = false;
 
     printf("Finished initializing the emulator.\n");
 }

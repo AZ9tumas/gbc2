@@ -40,6 +40,8 @@
 #define LD_u16(emu, reg) reg = read_u16(emu);
 #define LD_addr_reg(emu, addr, reg) write(emu, addr,  reg);
 #define LD_R_u8(emu, reg, u_8) reg = u_8;
+#define LD_RR(emu, r1, r2) r1 = r2;
+#define LD_u16_R(emu, addr, r) write(emu, addr, r);
 
 #define INC_RR(emu, reg) reg ++;
 #define DEC_RR(emy, reg) reg --;
@@ -92,9 +94,9 @@ void Start(Cartridge* cart, Emulator* emu){
 
     int dispatch_count = 0;
 
-    u8 opcode;
+    emu->run = true;
 
-    while (dispatch_count < 10) {
+    while (dispatch_count < 10 && emu->run) {
         dispatch_count += 1;
         printf("\n-- DISPATCH %d --\n", dispatch_count);
         dispatch(emu);
@@ -235,6 +237,17 @@ static void complement_carry(Emulator* emu){
     modify_flag(emu, flag_h, 0);
 }
 
+static void halt_emulator(Emulator* emu){
+    /* The HALT instruction
+     * This is used to temporarily halt the execution of the CPU until an interrupt occurs.
+     * When the HALT instruction is executed, the CPU enters a low-power state :
+     * Minimal power is consumed until an interrupt signal is passed, to resume normal operation.
+    */
+
+   emu->run = false;
+   printf("Came across the HALT instruction : : Stopping all execution.\n");
+}
+
 static void add_u16_RR(Emulator* emu, res res1, res res2){
 
     u16 rr1 = res1.entireByte;
@@ -311,7 +324,7 @@ void dispatch(Emulator* emu){
         case 0x24: INC(emu, H(emu)); break;
         case 0x25: DEC(emu, H(emu)); break;
         case 0x26: LD_u8(emu, H(emu)); break;
-        case 0x27: decimal_adjust(emu); break;
+        case 0x27: decimal_adjust_accumulator(emu); break;
         case 0x28: jump_relative_condition(emu, CONDITION_Z(emu)); break;
         case 0x29: add_u16_RR(emu, emu->HL, emu->HL); break;
         case 0x2A: LD_R_u8(emu, A(emu), read(emu, HL(emu))); INC_RR(emu, HL(emu)); break;
@@ -352,7 +365,12 @@ void dispatch(Emulator* emu){
             break;
         }
         case 0x36: LD_addr_reg(emu, read(emu, HL(emu)), read_u8(emu)); break;
-        case 0x27: decimal_adjust(emu); break;
+        case 0x37: {
+            modify_flag(emu, flag_c, 1);
+            modify_flag(emu, flag_n, 0);
+            modify_flag(emu, flag_h, 0);
+            break;
+        }
         case 0x38: jump_relative_condition(emu, CONDITION_C(emu)); break;
         case 0x39: add_u16_RR(emu, emu->HL, emu->SP); break;
         case 0x3A: LD_R_u8(emu, A(emu), read(emu, HL(emu))); DEC_RR(emu, HL(emu)); break;
@@ -361,6 +379,75 @@ void dispatch(Emulator* emu){
         case 0x3D: DEC(emu, A(emu)); break;
         case 0x3E: LD_u8(emu, A(emu)); break;
         case 0x3F: complement_carry(emu); break;
+
+        case 0x40: LD_RR(emu, B(emu), B(emu)); break;
+        case 0x41: LD_RR(emu, B(emu), C(emu)); break;
+        case 0x42: LD_RR(emu, B(emu), D(emu)); break;
+        case 0x43: LD_RR(emu, B(emu), E(emu)); break;
+        case 0x44: LD_RR(emu, B(emu), H(emu)); break;
+        case 0x45: LD_RR(emu, B(emu), L(emu)); break;
+        case 0x46: LD_RR(emu, B(emu), read(emu, HL(emu))); break;
+        case 0x47: LD_RR(emu, B(emu), A(emu)); break;
+        case 0x48: LD_RR(emu, C(emu), B(emu)); break;
+        case 0x49: LD_RR(emu, C(emu), C(emu)); break;
+        case 0x4A: LD_RR(emu, C(emu), D(emu)); break;
+        case 0x4B: LD_RR(emu, C(emu), E(emu)); break;
+        case 0x4C: LD_RR(emu, C(emu), H(emu)); break;
+        case 0x4D: LD_RR(emu, C(emu), L(emu)); break;
+        case 0x4E: LD_RR(emu, C(emu), read(emu, HL(emu))); break;
+        case 0x4F: LD_RR(emu, C(emu), A(emu)); break;
+
+        case 0x50: LD_RR(emu, D(emu), B(emu)); break;
+        case 0x51: LD_RR(emu, D(emu), C(emu)); break;
+        case 0x52: LD_RR(emu, D(emu), D(emu)); break;
+        case 0x53: LD_RR(emu, D(emu), E(emu)); break;
+        case 0x54: LD_RR(emu, D(emu), H(emu)); break;
+        case 0x55: LD_RR(emu, D(emu), L(emu)); break;
+        case 0x56: LD_RR(emu, D(emu), read(emu, HL(emu))); break;
+        case 0x57: LD_RR(emu, D(emu), A(emu)); break;
+        case 0x58: LD_RR(emu, E(emu), B(emu)); break;
+        case 0x59: LD_RR(emu, E(emu), C(emu)); break;
+        case 0x5A: LD_RR(emu, E(emu), D(emu)); break;
+        case 0x5B: LD_RR(emu, E(emu), E(emu)); break;
+        case 0x5C: LD_RR(emu, E(emu), H(emu)); break;
+        case 0x5D: LD_RR(emu, E(emu), L(emu)); break;
+        case 0x5E: LD_RR(emu, E(emu), read(emu, HL(emu))); break;
+        case 0x5F: LD_RR(emu, E(emu), A(emu)); break;
+
+        case 0x60: LD_RR(emu, H(emu), B(emu)); break;
+        case 0x61: LD_RR(emu, H(emu), C(emu)); break;
+        case 0x62: LD_RR(emu, H(emu), D(emu)); break;
+        case 0x63: LD_RR(emu, H(emu), E(emu)); break;
+        case 0x64: LD_RR(emu, H(emu), H(emu)); break;
+        case 0x65: LD_RR(emu, H(emu), L(emu)); break;
+        case 0x66: LD_RR(emu, H(emu), read(emu, HL(emu))); break;
+        case 0x67: LD_RR(emu, H(emu), A(emu)); break;
+        case 0x68: LD_RR(emu, L(emu), B(emu)); break;
+        case 0x69: LD_RR(emu, L(emu), C(emu)); break;
+        case 0x6A: LD_RR(emu, L(emu), D(emu)); break;
+        case 0x6B: LD_RR(emu, L(emu), E(emu)); break;
+        case 0x6C: LD_RR(emu, L(emu), H(emu)); break;
+        case 0x6D: LD_RR(emu, L(emu), L(emu)); break;
+        case 0x6E: LD_RR(emu, L(emu), read(emu, HL(emu))); break;
+        case 0x6F: LD_RR(emu, L(emu), A(emu)); break;
+
+        case 0x70: LD_u16_R(emu, HL(emu), B(emu)); break;
+        case 0x71: LD_u16_R(emu, HL(emu), C(emu)); break;
+        case 0x72: LD_u16_R(emu, HL(emu), D(emu)); break;
+        case 0x73: LD_u16_R(emu, HL(emu), E(emu)); break;
+        case 0x74: LD_u16_R(emu, HL(emu), H(emu)); break;
+        case 0x75: LD_u16_R(emu, HL(emu), L(emu)); break;
+        case 0x76: halt_emulator(emu); break;
+        case 0x77: LD_u16_R(emu, HL(emu), A(emu)); break;
+        case 0x78: LD_RR(emu, A(emu), B(emu)); break;
+        case 0x79: LD_RR(emu, A(emu), C(emu)); break;
+        case 0x7A: LD_RR(emu, A(emu), D(emu)); break;
+        case 0x7B: LD_RR(emu, A(emu), E(emu)); break;
+        case 0x7C: LD_RR(emu, A(emu), H(emu)); break;
+        case 0x7D: LD_RR(emu, A(emu), L(emu)); break;
+        case 0x7E: LD_RR(emu, A(emu), read(emu, HL(emu))); break;
+        case 0x7F: LD_RR(emu, A(emu), A(emu)); break;
+
     }
 
     emu->PC.entireByte ++;

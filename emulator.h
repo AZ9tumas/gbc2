@@ -30,6 +30,7 @@ typedef struct {
     u8 hram[0x7f]; /*  */
     u8 IO[0x80]; 
 
+    bool run;
 
     Cartridge* cart;
 } Emulator;
