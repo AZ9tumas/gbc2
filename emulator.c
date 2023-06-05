@@ -1,8 +1,6 @@
 #include "emulator.h"
 
 Emulator* initEmulator(Emulator* emu){
-    printf("Going to initialize the emulator.\n");
-    
     emu->AF.bytes.higher = 0x01;
     emu->AF.bytes.lower = 0x0000;
 
@@ -15,12 +13,10 @@ Emulator* initEmulator(Emulator* emu){
     emu->HL.bytes.higher = 0x84;
     emu->HL.bytes.lower = 0x03;
 
-    emu->PC.entireByte = 0x100;
+    emu->PC.entireByte = 0xff;
     emu->SP.entireByte = 0xfffe;
     
     emu->run = false;
-
-    printf("Finished initializing the emulator.\n");
 }
 
 void modify_flag(Emulator* emu, flags flag, u8 value){
