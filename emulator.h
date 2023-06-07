@@ -19,28 +19,6 @@ typedef enum {
 } flags;
 typedef Register res;
 
-#define A(emu) emu->AF.bytes.higher
-#define F(emu) emu->AF.bytes.lower
-
-#define B(emu) emu->BC.bytes.higher
-#define C(emu) emu->BC.bytes.lower
-
-#define D(emu) emu->DE.bytes.higher
-#define E(emu) emu->DE.bytes.lower
-
-#define H(emu) emu->HL.bytes.higher
-#define L(emu) emu->HL.bytes.lower
-
-#define AF(emu) emu->AF.entireByte
-#define BC(emu) emu->BC.entireByte
-#define DE(emu) emu->DE.entireByte
-#define HL(emu) emu->HL.entireByte
-
-typedef enum {
-    R_SC = 0x02,
-    R_SB = 0x01
-} IO_REG_PORTS;
-
 typedef struct {
     /* Registers */
     

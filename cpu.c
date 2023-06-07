@@ -682,11 +682,6 @@ void dispatch(Emulator* emu){
             break;
         }
         case 0xCE: A(emu) = adc_u8_u8(emu, A(emu), read_u8(emu)); break;
-        
-        default: {
-            printf("This instruction hasn't been implemented yet.\n");
-            emu->run = false;
-            break;
-        }
+
     }
 }

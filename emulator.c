@@ -1,17 +1,20 @@
 #include "emulator.h"
 
 Emulator* initEmulator(Emulator* emu){
-    A(emu) = 0x11;
-    F(emu) = 0b10000000;
-
-    BC(emu) = 0x0000;
+    printf("Going to initialize the emulator.\n");
+    
+    emu->AF.bytes.higher = 0x01;
+    emu->AF.bytes.lower = 0x0000;
 
     D(emu) = 0xff;
     E(emu) = 0x56;
 
     HL(emu) = 0x000d;
 
-    emu->PC.entireByte = 0xff;
+    emu->HL.bytes.higher = 0x84;
+    emu->HL.bytes.lower = 0x03;
+
+    emu->PC.entireByte = 0x100;
     emu->SP.entireByte = 0xfffe;
     
     emu->run = false;
