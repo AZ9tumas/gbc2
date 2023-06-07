@@ -1,24 +1,5 @@
 #include "cpu.h"
 
-/* Register definations */
-
-#define A(emu) emu->AF.bytes.higher
-#define F(emu) emu->AF.bytes.lower
-
-#define B(emu) emu->BC.bytes.higher
-#define C(emu) emu->BC.bytes.lower
-
-#define D(emu) emu->DE.bytes.higher
-#define E(emu) emu->DE.bytes.lower
-
-#define H(emu) emu->HL.bytes.higher
-#define L(emu) emu->HL.bytes.lower
-
-#define AF(emu) emu->AF.entireByte
-#define BC(emu) emu->BC.entireByte
-#define DE(emu) emu->DE.entireByte
-#define HL(emu) emu->HL.entireByte
-
 /* Flags */
 
 #define set_flagz(emu, v1) modify_flag(emu, flag_z, !v1);
@@ -49,7 +30,12 @@
 #define INC(emu, reg) inc_r8(emu, reg); reg ++;
 #define DEC(emu, reg) dec_r8(emu, reg); reg --;
 
-#define JUMP(emu, u_8) emu->PC.entireByte += (u8)u_8;
+/* Direct jump macros */
+#define JUMP(emu, u_16v)  emu->PC.entireByte = u_16v;
+
+/* Jump relative macros */
+#define JUMP_RELATIVE(emu, u_8) emu->PC.entireByte += (u8)u_8;
+
 #define ADD(emu, v1, v2) 
 
 #define ROTATE_LEFT(emu, reg, zflag, cflag) reg = rotate_left(emu, reg, zflag, cflag);
@@ -65,17 +51,34 @@ u8 read(Emulator* emu, u16 addr){
     if (addr >= HIGH_RAM && addr >= HIGH_RAM_END) return emu->hram[addr - HIGH_RAM];
     if (addr >= IO_REGISTERS && addr <= IO_REGISTERS_END) return emu->IO[addr - IO_REGISTERS];
     
-    printf("Found some address, 0x%04x, which cannot be actually accessed.", addr);
+    //printf("Found some address, 0x%04x, which cannot be actually accessed.", addr);
 
     return 0xff;
 }
 
 u16 read_u16(Emulator* emu){
-    return (u16)(read(emu, emu->PC.entireByte++) | (read(emu, emu->PC.entireByte++) << 8));
+    u8 lower = read(emu, ++ emu->PC.entireByte);
+    u8 higher = read(emu, ++ emu->PC.entireByte);
+
+    u16 total = lower | (higher << 8);
+
+    return total;
 }
 
 u8 read_u8(Emulator* emu){
-    return (u8)(read(emu, emu->PC.entireByte ++));
+    return (u8)(read(emu, ++ emu->PC.entireByte));
+}
+
+static bool perform_IO_actions(Emulator* emu, u16 diff, u8 byte){
+    /* Returns whether we have to continue writing to IO after this execution. */
+    switch (diff){
+        case R_SC: {
+            if (byte == 0x81){
+                printf("%c", emu->IO[R_SB]);
+                emu->IO[R_SC] = 0x00;
+            }
+        }
+    }
 }
 
 static void write(Emulator* emu, u16 addr, u8 byte){
@@ -85,20 +88,22 @@ static void write(Emulator* emu, u16 addr, u8 byte){
     else if (addr >= WRAM_4KB && addr <= WRAM_4KB_END) emu->wram1[addr - WRAM_4KB] = byte;
     else if (addr >= WRAM_SWITCHABLE_4KB && addr <= WRAM_SWITCHABLE_4KB_END) emu->wram2[addr - WRAM_SWITCHABLE_4KB] = byte;
     else if (addr >= HIGH_RAM && addr <= HIGH_RAM_END) emu->hram[addr - HIGH_RAM] = byte;
-    else if (addr >= IO_REGISTERS && addr <= IO_REGISTERS_END) emu->IO[addr - IO_REGISTERS] = byte;
+    else if (addr >= IO_REGISTERS && addr <= IO_REGISTERS_END){
+        if (perform_IO_actions(emu, addr - IO_REGISTERS, byte)) return;
+        emu->IO[addr - IO_REGISTERS] = byte;
+    }
 }
 
 void Start(Cartridge* cart, Emulator* emu){
-    printf("Starting dispatch\n");
     emu->cart = cart;
 
     int dispatch_count = 0;
 
     emu->run = true;
 
-    while (dispatch_count < 10 && emu->run) {
+    while (dispatch_count < 2074879 && emu->run) {
         dispatch_count += 1;
-        printf("\n-- DISPATCH %d --\n", dispatch_count);
+        //printf("\n-- DISPATCH %d --\n", dispatch_count);
         dispatch(emu);
     }
 }
@@ -106,15 +111,15 @@ void Start(Cartridge* cart, Emulator* emu){
 static void inc_r8(Emulator* emu, u8 oldval){
     /* Old val is reg's value before incrementing. The actual incrementing is done after this function.*/
     
-    modify_flag(emu, flag_z, !(oldval + 1));
-    modify_flag(emu, flag_n, 0);
+    set_flagz(emu, oldval + 1);
     set_flagh_add(emu, oldval, 1);
+    modify_flag(emu, flag_n, 0);
 }
 
 static void dec_r8(Emulator* emu, u8 oldval){
-    modify_flag(emu, flag_z, !(oldval - 1));
-    modify_flag(emu, flag_n, 1);
+    set_flagz(emu, oldval + 1);
     set_flagh_sub(emu, oldval, 1);
+    modify_flag(emu, flag_n, 1);
 }
 
 static u8 rotate_left(Emulator* emu, u8 reg_value, bool zflag, bool carry_flag){
@@ -424,11 +429,11 @@ static void jump_relative_condition(Emulator* emu, bool condition_status){
 }
 
 void dispatch(Emulator* emu){
+    /* This increments PC, so we're already at the next byte. */
+    u8 opcode = read_u8(emu);
 
-    u8 opcode = read(emu, emu->PC.entireByte);
-
-    printInstruction(emu); /* Prints the current instruction */
-    printRegisters(emu); /* Shows what changes were made to regs after exec last instr. */
+    printRegisters(emu);
+    printInstruction(emu);
 
     switch (opcode){
         case 0x00: break;
@@ -463,7 +468,7 @@ void dispatch(Emulator* emu){
         case 0x15: DEC(emu, D(emu)); break;
         case 0x16: LD_u8(emu, D(emu)); break;
         case 0x17: ROTATE_LEFT(emu, A(emu), false, true); break;
-        case 0x18: JUMP(emu, read_u8(emu)); break;
+        case 0x18: JUMP_RELATIVE(emu, read_u8(emu)); break;
         case 0x19: add_u16_RR(emu, emu->HL, emu->DE); break;
         case 0x1A: LD_R_u8(emu, A(emu), read(emu, DE(emu))); break;  // LD A, (DE)
         case 0x1B: DEC_RR(emu, DE(emu)); break;
@@ -472,7 +477,7 @@ void dispatch(Emulator* emu){
         case 0x1E: LD_u8(emu, E(emu)); break;
         case 0x1F: ROTATE_RIGHT(emu, A(emu), false, true); break;
 
-        case 0x20: jump_relative_condition(emu, CONDITION_NZ(emu)); break; /* Jump relative to a given condition  */
+        case 0x20: jump_relative_condition(emu, CONDITION_NZ(emu)); break;
         case 0x21: LD_u16(emu, HL(emu)); break;
         case 0x22: LD_addr_reg(emu, read(emu, HL(emu)), A(emu)); INC_RR(emu, HL(emu)); break;
         case 0x23: INC_RR(emu, HL(emu)); break;
@@ -671,9 +676,17 @@ void dispatch(Emulator* emu){
         case 0xBE: cp_u8_u8(emu, A(emu), read(emu, HL(emu))); break;
         case 0xBF: cp_u8_u8(emu, A(emu), A(emu)); break;
 
+        case 0xC3: {
+            u16 stuff = read_u16(emu); 
+            emu->PC.entireByte = stuff - 1; 
+            break;
+        }
         case 0xCE: A(emu) = adc_u8_u8(emu, A(emu), read_u8(emu)); break;
-
+        
+        default: {
+            printf("This instruction hasn't been implemented yet.\n");
+            emu->run = false;
+            break;
+        }
     }
-
-    emu->PC.entireByte ++;
 }

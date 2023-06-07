@@ -1,0 +1,33 @@
+PATH_TO_WORKING_GB = r"C:\Users\apc09\Downloads\log.txt"
+PATH_TO_GBC = r"C:\Users\apc09\Desktop\GBC\log1.txt"
+
+working = open(PATH_TO_WORKING_GB)
+mine = open(PATH_TO_GBC)
+
+working_stuff = working.readlines()
+mine_stuff = mine.readlines()
+
+working_size = len(working_stuff)
+mine_size = len(mine_stuff)
+
+max_size = min(working_size, mine_size)
+
+def elaborate_mismatch(dispatch_count):
+    megagbc = working_stuff[dispatch_count]
+    gbc = mine_stuff[dispatch_count]
+
+    print("-- WORKING GBC --")
+    print(megagbc)
+    print("-- MY GBC --")
+    print(gbc)
+
+for i in range(max_size):
+    megagbc = working_stuff[i]
+    gbc = mine_stuff[i]
+
+    if not gbc == megagbc:
+        elaborate_mismatch(i // 2  + 1)
+        if i > 10: break
+
+working.close()
+mine.close()

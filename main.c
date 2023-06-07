@@ -28,7 +28,7 @@ int main(int argc, char* argv[]){
 
         Cartridge cart;
         initCartridge(&cart, memory, size);
-        print_cartridge(&cart);
+        //print_cartridge(&cart);
 
         Start(&cart, emu);
 
