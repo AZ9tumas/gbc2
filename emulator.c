@@ -1,9 +1,7 @@
 #include "emulator.h"
 
-Emulator* initEmulator(Emulator* emu){
-    printf("Going to initialize the emulator.\n");
-    
-    emu->AF.bytes.higher = 0x01;
+Emulator* initEmulator(Emulator* emu){    
+    emu->AF.bytes.higher = 0x11;
     emu->AF.bytes.lower = 0x0000;
 
     D(emu) = 0xff;
@@ -11,8 +9,8 @@ Emulator* initEmulator(Emulator* emu){
 
     HL(emu) = 0x000d;
 
-    emu->HL.bytes.higher = 0x84;
-    emu->HL.bytes.lower = 0x03;
+    emu->HL.bytes.higher = 0x00;
+    emu->HL.bytes.lower = 0x0d;
 
     emu->PC.entireByte = 0x100;
     emu->SP.entireByte = 0xfffe;

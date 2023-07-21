@@ -1,0 +1,5 @@
+rm *.o
+rm log1.txt
+make
+./gbc oprp.gb > log1.txt
+echo "Run debug now"

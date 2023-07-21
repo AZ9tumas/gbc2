@@ -429,11 +429,11 @@ static void jump_relative_condition(Emulator* emu, bool condition_status){
 }
 
 void dispatch(Emulator* emu){
-    /* This increments PC, so we're already at the next byte. */
-    u8 opcode = read_u8(emu);
-
+    
     printRegisters(emu);
     printInstruction(emu);
+    
+    u8 opcode = read_u8(emu);
 
     switch (opcode){
         case 0x00: break;
@@ -678,10 +678,15 @@ void dispatch(Emulator* emu){
 
         case 0xC3: {
             u16 stuff = read_u16(emu); 
-            emu->PC.entireByte = stuff - 1; 
+            emu->PC.entireByte = stuff;
             break;
         }
         case 0xCE: A(emu) = adc_u8_u8(emu, A(emu), read_u8(emu)); break;
-
+        
+        default: {
+            printf("This instruction hasn't been implemented yet.\n");
+            emu->run = false;
+            break;
+        }
     }
 }
