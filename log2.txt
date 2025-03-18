@@ -49266,4 +49266,3 @@
 [0xdfff][0x00][Z1 N1 H0 C0]      NOP
 [A11|B11|C00|Dd0|E00|H50|L00|SPfffe]
 [0xe000][0xff][Z1 N1 H0 C0]      RST 0x38
-This instruction hasn't been implemented yet.

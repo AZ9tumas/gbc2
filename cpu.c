@@ -120,9 +120,6 @@ static void write(Emulator* emu, u16 addr, u8 byte){
 
 void Start(Cartridge* cart, Emulator* emu){
     emu->cart = cart;
-
-    int dispatch_count = 0;
-
     emu->run = true;
 
     #ifdef DEBUG_OUTPUT
@@ -132,7 +129,9 @@ void Start(Cartridge* cart, Emulator* emu){
 
     #endif
 
-    while (dispatch_count++ < 100000 && emu->run) {
+    int dispatch_count = 0;
+
+    while (emu->run && dispatch_count < 100000) {
         dispatch_count += 1;
         //printf("\n-- DISPATCH %d --\n", dispatch_count);
         dispatch(emu);
@@ -798,7 +797,7 @@ void dispatch(Emulator* emu){
         case 0xFE: cp_u8_u8(emu, A(emu), read_u8(emu)); break;
         
         default: {
-            printf("This instruction hasn't been implemented yet.\n");
+            //printf("No implementation found for: 0x%2x\n", opcode);
             emu->run = false;
             break;
         }
