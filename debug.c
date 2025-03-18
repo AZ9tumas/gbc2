@@ -1,4 +1,5 @@
 #include "debug.h"
+#include "emulator.h"
 
 void log_fatal(Emulator* emu, const char* string) {
     printf("[FATAL]");
@@ -24,10 +25,10 @@ static uint16_t read2Bytes(Emulator* emu) {
 static void printFlags(Emulator* emu) {
     uint8_t flagState = emu->AF.bytes.lower;
 
-    printf("[Z%d", flagState >> 7);
-    printf(" N%d", (flagState >> 6) & 1);
-    printf(" H%d", (flagState >> 5) & 1);
-    printf(" C%d]", (flagState >> 4) & 1);
+    printf("[Z%d", getflag(emu, flag_z));
+    printf(" N%d", getflag(emu, flag_n));
+    printf(" H%d", getflag(emu, flag_h));
+    printf(" C%d]", getflag(emu, flag_c));
 }
 
 static void simpleInstruction(Emulator* emu, char* ins) {

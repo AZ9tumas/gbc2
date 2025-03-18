@@ -28,8 +28,8 @@
 #define INC_RR(emu, reg) reg ++;
 #define DEC_RR(emy, reg) reg --;
 
-#define INC(emu, reg) inc_r8(emu, reg); reg ++;
-#define DEC(emu, reg) dec_r8(emu, reg); reg --;
+#define INC(emu, reg) reg ++; inc_r8(emu, reg);
+#define DEC(emu, reg) reg --; dec_r8(emu, reg);
 
 /* Direct jump macros */
 #define JUMP(emu, u_16v)  emu->PC.entireByte = u_16v;
@@ -173,17 +173,15 @@ Next instruction (#16):
 
 */
 
-static void inc_r8(Emulator* emu, u8 oldval){
-    /* Old val is reg's value before incrementing. The actual incrementing is done after this function.*/
-    
-    set_flagz(emu, oldval + 1);
-    set_flagh_add(emu, oldval, 1);
+static void inc_r8(Emulator* emu, u8 newval){
+    set_flagz(emu, newval);
+    set_flagh_add(emu, newval - 1, 1);
     modify_flag(emu, flag_n, 0);
 }
 
-static void dec_r8(Emulator* emu, u8 oldval){
-    set_flagz(emu, oldval + 1);
-    set_flagh_sub(emu, oldval, 1);
+static void dec_r8(Emulator* emu, u8 newval){
+    set_flagz(emu, newval);
+    set_flagh_sub(emu, newval + 1, 1);
     modify_flag(emu, flag_n, 1);
 }
 
@@ -508,10 +506,12 @@ static void ret_condition(Emulator* emu, bool condition){
 }
 
 static void jump_relative_condition(Emulator* emu, bool condition_status){
-    int8_t jp_count = (int8_t) read_u8(emu); /* 4 cycles */
+    int8_t jp_count = (int8_t) read_u8_4C(emu); /* 4 cycles */
     if (condition_status){
         emu->PC.entireByte += jp_count;
         /* 4 Cycles */
+
+        cyclesSync_4(emu);
     }
 }
 

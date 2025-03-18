@@ -29,10 +29,10 @@ typedef union {
 } Register;
 
 typedef enum {
-    flag_z = 7,
-    flag_n = 6,
-    flag_h = 5, 
-    flag_c = 4
+    flag_z = 4,
+    flag_n = 3,
+    flag_h = 2, 
+    flag_c = 1
 } flags;
 typedef Register res;
 

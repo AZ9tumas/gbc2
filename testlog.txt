@@ -1,0 +1,14 @@
+(0x0080) Fetching flag Flag Z with value 0x00
+0
+[A11|B00|C00|Dff|E56|H00|L0d|SPfffe]
+[0x0100][0x00][Z1 N0 H0 C0]      NOP
+[A11|B00|C00|Dff|E56|H00|L0d|SPfffe]
+[0x0101][0xc3][Z1 N0 H0 C0]      JP a16 (0x0213)
+[A11|B00|C00|Dff|E56|H00|L0d|SPfffe]
+[0x0213][0x21][Z1 N0 H0 C0]      LD HL, d16 (0x4000)
+[A11|B00|C00|Dff|E56|H40|L00|SPfffe]
+[0x0216][0xc3][Z1 N0 H0 C0]      JP a16 (0x0200)
+[A11|B00|C00|Dff|E56|H40|L00|SPfffe]
+[0x0200][0x47][Z1 N0 H0 C0]      LD B, A
+[A11|B11|C00|Dff|E56|H40|L00|SPfffe]
+[0x0201][0x11][Z1 N0 H0 C0]      LD DE, d16 (0xc000)
