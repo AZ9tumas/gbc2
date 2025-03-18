@@ -1,6 +1,8 @@
 #ifndef gbc_common
 #define gbc_common
 
+#define DEBUG_OUTPUT
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>

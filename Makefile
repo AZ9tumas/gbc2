@@ -1,23 +1,22 @@
-CC = gcc
-CFLAGS = -Isrc/Include
-LDFLAGS = -Lsrc/lib -lmingw32
-
-all: gbc
 
 gbc: main.o cartridge.o emulator.o cpu.o debug.o
-	$(CC) -o gbc main.o cartridge.o emulator.o cpu.o debug.o $(LDFLAGS)
+	gcc -o gbc main.o cartridge.o emulator.o cpu.o debug.o $(shell sdl2-config --libs)
 
 main.o: main.c
-	$(CC) $(CFLAGS) -c main.c
+	gcc -c main.c $(shell sdl2-config --cflags)
 
-cartridge.o: cartridge.h cartridge.c
-	$(CC) $(CFLAGS) -c cartridge.c
+cartridge.o: cartridge.c cartridge.h
+	gcc -c cartridge.c
 
-emulator.o: emulator.h emulator.c
-	$(CC) $(CFLAGS) -c emulator.c
+emulator.o: emulator.c emulator.h
+	gcc -c emulator.c
 
-cpu.o: cpu.h cpu.c
-	$(CC) $(CFLAGS) -c cpu.c
+cpu.o: cpu.c cpu.h
+	gcc -c cpu.c
 
-debug.o: debug.h debug.c
-	$(CC) $(CFLAGS) -c debug.c
+debug.o: debug.c debug.h
+	gcc -c debug.c
+
+clean:
+	rm -f gbc *.o
+

@@ -330,7 +330,7 @@ void printCBInstruction(Emulator* emu, uint8_t byte) {
 }
 
 void printInstruction(Emulator* emu) {
-    printf("[0x%04x]", emu->PC.entireByte, read(emu, emu->PC.entireByte));
+    printf("[0x%04x][0x%02x]", emu->PC.entireByte, read(emu, emu->PC.entireByte));
     printFlags(emu);
     printf(" %5s", "");
 

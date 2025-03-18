@@ -1,8 +1,9 @@
 #include "cpu.h"
+#include "emulator.h"
 
 /* Flags */
 
-#define set_flagz(emu, v1) modify_flag(emu, flag_z, !v1);
+#define set_flagz(emu, v1) modify_flag(emu, flag_z, v1 == 0 ? 1 : 0);
 #define set_flagh_add(emu, v1, v2) modify_flag(emu, flag_h, (((uint32_t)v1 & 0xf) + ((uint32_t)v2 & 0xf) > 0xf) ? 1 : 0);
 #define set_flagh_sub(emu, v1, v2) modify_flag(emu, flag_h, ((v1 & 0xf) - (v2 & 0xf) & 0x10) ? 1 : 0)
 #define set_flagh_addu16(emu, v1, v2) modify_flag(emu, flag_h, (((uint32_t)v1 & 0xfff) + ((uint32_t)v2 & 0xfff) > 0xfff) ? 0 : 1)
@@ -56,6 +57,13 @@ u8 read(Emulator* emu, u16 addr){
     return 0xff;
 }
 
+u8 read_4C(Emulator* emu, u16 addr){
+    u8 byte = read(emu, addr);
+    cyclesSync_4(emu);
+
+    return byte;
+}
+
 u16 read_u16(Emulator* emu){
     u8 lower = read(emu, ++ emu->PC.entireByte);
     u8 higher = read(emu, ++ emu->PC.entireByte);
@@ -65,8 +73,22 @@ u16 read_u16(Emulator* emu){
     return total;
 }
 
+u8 read_u16_8C(Emulator* emu){
+    u8 lower = read_4C(emu, ++ emu->PC.entireByte);
+    u8 higher = read(emu, ++ emu->PC.entireByte);
+
+    u16 total = lower | (higher << 8);
+
+    return total;
+}
+
 u8 read_u8(Emulator* emu){
+    /* Read what is present at the next address */
     return (u8)(read(emu, ++ emu->PC.entireByte));
+}
+
+u8 read_u8_4C(Emulator* emu){
+    return read_4C(emu, ++ emu->PC.entireByte);
 }
 
 static bool perform_IO_actions(Emulator* emu, u16 diff, u8 byte){
@@ -79,6 +101,8 @@ static bool perform_IO_actions(Emulator* emu, u16 diff, u8 byte){
             }
         }
     }
+
+    return 1;
 }
 
 static void write(Emulator* emu, u16 addr, u8 byte){
@@ -101,12 +125,53 @@ void Start(Cartridge* cart, Emulator* emu){
 
     emu->run = true;
 
-    while (dispatch_count < 2074879 && emu->run) {
+    #ifdef DEBUG_OUTPUT
+        
+        printRegisters(emu);
+        printInstruction(emu);
+
+    #endif
+
+    while (dispatch_count++ < 100000 && emu->run) {
         dispatch_count += 1;
         //printf("\n-- DISPATCH %d --\n", dispatch_count);
         dispatch(emu);
     }
 }
+
+
+/*
+
+Context from file1:
+=== log1.txt ===
+Previous instruction (#14):
+[A20|B11|C10|Dc0|E01|H40|L02|SPfffe]
+[0x0208][Z0 N0 H0 C0]      INC E
+
+Current instruction (#15):
+[A20|B11|C10|Dc0|E02|H40|L02|SPfffe]
+[0x0209][Z0 N0 H0 C0]      JR NZ, r8 (-5)
+
+Next instruction (#16):
+[A20|B11|C10|Dc0|E02|H40|L02|SPfffe]
+[0x0206][Z0 N0 H0 C0]      LD A, (HL+)
+
+
+Context from file2:
+=== log2.txt ===
+Previous instruction (#14):
+[A20|B11|C10|Dc0|E01|H40|L02|SPfffe]
+[0x0208][0x1c][Z0 N0 H0 C0]      INC E
+
+Current instruction (#15):
+[A20|B11|C10|Dc0|E02|H40|L02|SPfffe]
+[0x0209][0x20][Z1 N0 H0 C0]      JR NZ, r8 (-5)
+
+Next instruction (#16):
+[A20|B11|C10|Dc0|E02|H40|L02|SPfffe]
+[0x0206][0x2a][Z1 N0 H0 C0]      LD A, (HL+)
+
+*/
 
 static void inc_r8(Emulator* emu, u8 oldval){
     /* Old val is reg's value before incrementing. The actual incrementing is done after this function.*/
@@ -192,7 +257,6 @@ static void decimal_adjust_accumulator(Emulator* emu){
     ** For more information regarding this, visit : 'https://ehaskins.com/2018-01-30%20Z80%20DAA/'
     */
 
-
     u8 val = A(emu);
 
     if (getflag(emu, flag_n)) {
@@ -271,8 +335,8 @@ static void test_adc_hc_flags(Emulator* emu, u8 old, u8 toAdd, u8 result, u8 car
      * evaluating the Half Carry (H) and Carry (C) flags. In this custom test function, we
      * carefully examine the relevant conditions for the flags. */
 
-    bool halfCarryOccurred = false;  // Variable to track if a Half Carry (H) occurred
-    bool carryOccurred = false;      // Variable to track if a Carry (C) occurred
+    bool halfCarryOccurred = false;
+    bool carryOccurred = false;
 
     /* Half Carry (H) flag:
      * The Half Carry flag can occur in two cases:
@@ -413,11 +477,34 @@ static u8 or_u8_u8(Emulator* emu, u8 val1, u8 val2){
 
 static void cp_u8_u8(Emulator* emu, u8 val1, u8 val2){
     u8 result = val1 - val2;
-    
-    modify_flag(emu, flag_n, 1);
 
+    /* result is unused */
+    
+    set_flagz(emu, result);
+    modify_flag(emu, flag_n, 1);
     set_flagh_sub(emu, val1, val2);
     set_flagc_sub(emu, val1, val2);
+}
+
+static u16 pop16(Emulator* emu){
+
+    /* Read the current address (u16) and move to the next one */
+    u16 stackPointer = emu->SP.entireByte;
+
+    u8 lowByte = read_4C(emu, stackPointer);
+    u8 highByte = read_4C(emu, stackPointer + 1);
+
+    emu->SP.entireByte += 2;
+    
+    return (u16)(lowByte | (highByte << 8));
+}
+
+static void ret_condition(Emulator* emu, bool condition){
+    cyclesSync_4(emu);
+    if (!condition) return;
+
+    emu->PC.entireByte = pop16(emu);
+    cyclesSync_4(emu);
 }
 
 static void jump_relative_condition(Emulator* emu, bool condition_status){
@@ -428,12 +515,22 @@ static void jump_relative_condition(Emulator* emu, bool condition_status){
     }
 }
 
+void prefixCB(Emulator* emu){
+
+    printf("Bruh\n");
+}
+
+
 void dispatch(Emulator* emu){
-    
-    printRegisters(emu);
-    printInstruction(emu);
-    
-    u8 opcode = read_u8(emu);
+
+    u8 opcode = read_u8_4C(emu);
+
+    #ifdef DEBUG_OUTPUT
+        
+        printRegisters(emu);
+        printInstruction(emu);
+
+    #endif
 
     switch (opcode){
         case 0x00: break;
@@ -678,10 +775,27 @@ void dispatch(Emulator* emu){
 
         case 0xC3: {
             u16 stuff = read_u16(emu); 
-            emu->PC.entireByte = stuff;
+            emu->PC.entireByte = stuff - 1;
             break;
         }
+
+        /* CONDITION_NZ */
+        case 0xC0: ret_condition(emu, CONDITION_NZ(emu)); break;
+    
+        case 0xC6: A(emu) = add_u8_u8(emu, A(emu), read_u8(emu)); break;
+        
+        case 0xCB: prefixCB(emu); break;
+
         case 0xCE: A(emu) = adc_u8_u8(emu, A(emu), read_u8(emu)); break;
+
+        case 0xD6: A(emu) = sub_u8_u8(emu, A(emu), read_u8(emu)); break;
+        case 0xDE: A(emu) = sbc_u8_u8(emu, A(emu), read_u8(emu)); break;
+
+        case 0xE6: A(emu) = and_u8_u8(emu, A(emu), read_u8(emu)); break;
+        case 0xEE: A(emu) = xor_u8_u8(emu, A(emu), read_u8(emu)); break;
+
+        case 0xF6: A(emu) = or_u8_u8(emu, A(emu), read_u8(emu)); break;
+        case 0xFE: cp_u8_u8(emu, A(emu), read_u8(emu)); break;
         
         default: {
             printf("This instruction hasn't been implemented yet.\n");

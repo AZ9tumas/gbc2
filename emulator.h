@@ -42,23 +42,33 @@ typedef enum {
 } io_reg_addr;
 
 typedef struct {
-    /* Registers */
-    
+
+    /* Registers */ 
     res AF, BC, DE, HL, SP, PC;
 
-    u8 vram[0x2000];  /* 8 kb */
-    u8 wram1[0x1000]; /* wram1 + wram2 = 8 kb */
+    u8 vram[0x2000];  /*  */
+
+    /* WRAM1 contains 1 Byte (8 bits) x 4096 (0x1000) = 4 KB of data */
+    /* WRAM1 + WRAM2 = 8 KB */
+    u8 wram1[0x1000];
     u8 wram2[0x1000];
-    u8 hram[0x7f]; /*  */
+
+    /* High Ram 0x7f = 127 */
+    u8 hram[0x7f];
     u8 IO[0x80]; 
 
     bool run;
 
+    unsigned long clock;
+
     Cartridge* cart;
 } Emulator;
 
-Emulator* initEmulator(Emulator* emu);
+Emulator* initEmulator();
 void modify_flag(Emulator* emu, flags flag, u8 val);
 u8 getflag(Emulator* emu, flags flag);
+
+u8 read(Emulator* emu, u16 addr);
+void cyclesSync_4(Emulator* emu);
 
 #endif

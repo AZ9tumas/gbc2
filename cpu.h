@@ -1,7 +1,6 @@
 #ifndef gbc_cpu
 #define gbc_cpu
 
-#include "emulator.h"
 #include "debug.h"
 
 typedef enum {
@@ -44,6 +43,5 @@ typedef enum {
 void Start(Cartridge* cart, Emulator* emu);
 void dispatch(Emulator* emu);
 
-u8 read(Emulator* emu, u16 addr);
 
 #endif

@@ -5,9 +5,7 @@
 
 int main(int argc, char* argv[]){
 
-    Emulator* emu;
-
-    initEmulator(emu);
+    Emulator* emu = initEmulator();
 
     if (argc > 1) {
         char* filePath = argv[1];
@@ -35,4 +33,6 @@ int main(int argc, char* argv[]){
     } else {
         printf("No input file has been provided.\n");
     }
+
+    free(emu);
 }
