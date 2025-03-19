@@ -21,10 +21,10 @@ def parse_register_line(line):
 def parse_instruction_line(line):
     """
     Parse an instruction detail line.
-    Handles two possible formats:
-      Format 1:
+    Supports two formats:
+      Format 1 (no opcode field):
          [0x0100][Z1 N0 H0 C0]      NOP
-      Format 2:
+      Format 2 (with opcode field):
          [0x0100][0x00][Z0 N0 H0 C0]      NOP
     Returns a dict with keys: pc, opcode (or None), flags, mnemonic.
     """
@@ -44,103 +44,132 @@ def parse_instruction_line(line):
 
 def parse_disassembly(text):
     """
-    Parse the text of a disassembly file into a list of instructions.
-    Each instruction is represented as a dict with keys:
-      'raw_reg' : original register state line,
-      'raw_instr': original instruction line,
-      'registers' : parsed register state dict,
-      'instruction': parsed instruction details dict.
-    Assumes each instruction is represented by two consecutive non-empty lines.
+    Parse the disassembly text into a list of entries.
+    Each entry is either:
+      - An instruction entry with type "instruction", which has:
+          'raw_reg': the register state line,
+          'raw_instr': the instruction detail line,
+          'registers': parsed registers dict,
+          'instruction': parsed instruction dict.
+      - A writing entry with type "writing", which has:
+          'raw': the full writing line.
     """
-    lines = [line for line in text.strip().splitlines() if line.strip()]
-    instructions = []
+    lines = [line.rstrip() for line in text.strip().splitlines() if line.strip()]
+    entries = []
     i = 0
     while i < len(lines):
-        # Expect register state line.
-        if re.match(r'^\[.*\|.*\]$', lines[i]):
-            raw_reg = lines[i].rstrip()
+        line = lines[i]
+        if line.startswith("Writing"):
+            # Writing entry.
+            entries.append({
+                'type': 'writing',
+                'raw': line
+            })
+            i += 1
+        elif line.startswith("[") and "|" in line and line.endswith("]"):
+            # Expect a register state line.
+            raw_reg = line
             reg_dict = parse_register_line(raw_reg)
-            i += 1
+            if i+1 < len(lines) and lines[i+1].startswith("["):
+                raw_instr = lines[i+1]
+                instr_dict = parse_instruction_line(raw_instr)
+                entries.append({
+                    'type': 'instruction',
+                    'raw_reg': raw_reg,
+                    'raw_instr': raw_instr,
+                    'registers': reg_dict,
+                    'instruction': instr_dict
+                })
+                i += 2
+            else:
+                print(f"Warning: Missing instruction detail line after line {i+1}")
+                i += 1
         else:
-            print(f"Warning: Expected register state line at line {i+1}: {lines[i]}")
+            print(f"Warning: Unrecognized line format at line {i+1}: {line}")
             i += 1
-            continue
-        # Next, instruction detail line.
-        if i < len(lines) and lines[i].startswith('['):
-            raw_instr = lines[i].rstrip()
-            instr_dict = parse_instruction_line(raw_instr)
-            i += 1
-        else:
-            print(f"Warning: Expected instruction detail line at line {i+1}")
-            break
-        instructions.append({
-            'raw_reg': raw_reg,
-            'raw_instr': raw_instr,
-            'registers': reg_dict,
-            'instruction': instr_dict
-        })
-    return instructions
+    return entries
 
-def compare_instructions(instr1, instr2):
+def compare_instruction_entries(e1, e2):
     """
-    Compare two instruction dictionaries.
-    Returns a list of difference strings for crucial elements (registers, PC, flags, mnemonic).
+    Compare two instruction entries.
+    Returns a list of difference strings for registers, PC, flags, mnemonic, and opcode.
     """
     diffs = []
-    # Compare registers.
-    regs1 = instr1.get('registers', {})
-    regs2 = instr2.get('registers', {})
+    regs1 = e1.get('registers', {})
+    regs2 = e2.get('registers', {})
     for reg in set(regs1.keys()).union(regs2.keys()):
         val1 = regs1.get(reg)
         val2 = regs2.get(reg)
         if val1 != val2:
             diffs.append(f"Register {reg} differs: {val1} vs {val2}")
     
-    inst1 = instr1.get('instruction', {})
-    inst2 = instr2.get('instruction', {})
-    # Compare PC.
+    inst1 = e1.get('instruction', {})
+    inst2 = e2.get('instruction', {})
     if inst1.get('pc') != inst2.get('pc'):
         diffs.append(f"PC differs: {inst1.get('pc')} vs {inst2.get('pc')}")
-    # Compare flags.
     if inst1.get('flags') != inst2.get('flags'):
         diffs.append(f"Flags differ at PC {inst1.get('pc')}: {inst1.get('flags')} vs {inst2.get('flags')}")
-    # Compare mnemonic (and operands).
     if inst1.get('mnemonic') != inst2.get('mnemonic'):
         diffs.append(f"Mnemonic differs at PC {inst1.get('pc')}: '{inst1.get('mnemonic')}' vs '{inst2.get('mnemonic')}'")
-    # Compare opcode field if both exist.
     op1 = inst1.get('opcode')
     op2 = inst2.get('opcode')
     if op1 and op2 and op1.lower() != op2.lower():
         diffs.append(f"Opcode differs at PC {inst1.get('pc')}: {op1} vs {op2}")
     return diffs
 
-def print_instruction_context(instr_list, index, filename):
+def compare_entries(e1, e2):
     """
-    Print previous, current, and next instructions from the list for a given index.
+    Compare two entries (which can be of type "instruction" or "writing").
+    Returns a list of differences. If types differ, report that.
+    """
+    diffs = []
+    if e1.get('type') != e2.get('type'):
+        diffs.append(f"Entry type differs: {e1.get('type')} vs {e2.get('type')}")
+        return diffs
+    
+    if e1.get('type') == 'instruction':
+        diffs.extend(compare_instruction_entries(e1, e2))
+    elif e1.get('type') == 'writing':
+        # Compare writing lines directly.
+        if e1.get('raw').strip() != e2.get('raw').strip():
+            diffs.append(f"Writing line differs: '{e1.get('raw').strip()}' vs '{e2.get('raw').strip()}'")
+    return diffs
+
+def print_entry_context(entries, index, filename):
+    """
+    Print the previous, current, and next entries (raw) from entries list for context.
     """
     print(f"=== {filename} ===")
     if index > 0:
-        print(f"Previous instruction (#{index}):")
-        print(instr_list[index-1]['raw_reg'])
-        print(instr_list[index-1]['raw_instr'])
+        print(f"Previous entry (#{index}):")
+        print_entry(entries[index-1])
     else:
-        print("Previous instruction: None")
-    
-    print(f"\nCurrent instruction (#{index+1}):")
-    print(instr_list[index]['raw_reg'])
-    print(instr_list[index]['raw_instr'])
-    
-    if index+1 < len(instr_list):
-        print(f"\nNext instruction (#{index+2}):")
-        print(instr_list[index+1]['raw_reg'])
-        print(instr_list[index+1]['raw_instr'])
+        print("Previous entry: None")
+    print(f"\nCurrent entry (#{index+1}):")
+    print_entry(entries[index])
+    if index+1 < len(entries):
+        print(f"\nNext entry (#{index+2}):")
+        print_entry(entries[index+1])
     else:
-        print("\nNext instruction: None")
+        print("\nNext entry: None")
     print("\n")
+
+def print_entry(entry):
+    """
+    Print an entry. For an instruction entry, print both register and instruction lines.
+    For a writing entry, print the raw line.
+    """
+    if entry.get('type') == 'instruction':
+        print(entry.get('raw_reg'))
+        print(entry.get('raw_instr'))
+    elif entry.get('type') == 'writing':
+        print(entry.get('raw'))
+    else:
+        print("Unknown entry type.")
 
 def main():
     if len(sys.argv) != 3:
-        print("Usage: python compare_disasm.py <disasm_file1> <disasm_file2>")
+        print("Usage: python debug.py <disasm_file1> <disasm_file2>")
         sys.exit(1)
     file1, file2 = sys.argv[1], sys.argv[2]
     with open(file1, 'r') as f:
@@ -148,25 +177,24 @@ def main():
     with open(file2, 'r') as f:
         text2 = f.read()
     
-    instrs1 = parse_disassembly(text1)
-    instrs2 = parse_disassembly(text2)
+    entries1 = parse_disassembly(text1)
+    entries2 = parse_disassembly(text2)
     
-    min_len = min(len(instrs1), len(instrs2))
+    min_len = min(len(entries1), len(entries2))
     for i in range(min_len):
-        diffs = compare_instructions(instrs1[i], instrs2[i])
+        diffs = compare_entries(entries1[i], entries2[i])
         if diffs:
-            print(f"Mismatch found at instruction #{i+1}:")
+            print(f"Mismatch found at entry #{i+1}:")
             for diff in diffs:
                 print("  ", diff)
             print("\nContext from file1:")
-            print_instruction_context(instrs1, i, file1)
+            print_entry_context(entries1, i, file1)
             print("Context from file2:")
-            print_instruction_context(instrs2, i, file2)
+            print_entry_context(entries2, i, file2)
             sys.exit(0)
     
-    # If no mismatch is found in the overlapping instructions.
-    if len(instrs1) != len(instrs2):
-        print("No mismatches in crucial elements were found, but the number of instructions differs.")
+    if len(entries1) != len(entries2):
+        print("No mismatches in crucial elements were found, but the number of entries differs.")
     else:
         print("No mismatches found in the crucial elements of the disassembly.")
 

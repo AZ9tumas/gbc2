@@ -3,16 +3,14 @@
 Emulator* initEmulator(){
 
     Emulator* emu = (Emulator*) malloc(sizeof(Emulator));
-    emu->AF.bytes.higher = 0x11;
-    emu->AF.bytes.lower = 8;
+    
+    A(emu) = 0x11;
+    F(emu) = 8;
 
     D(emu) = 0xff;
     E(emu) = 0x56;
 
     HL(emu) = 0x000d;
-
-    emu->HL.bytes.higher = 0x00;
-    emu->HL.bytes.lower = 0x0d;
 
     emu->PC.entireByte = 0x100;
     emu->SP.entireByte = 0xfffe;

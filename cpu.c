@@ -20,10 +20,10 @@
 
 #define LD_u8(emu, reg) reg = read_u8(emu);
 #define LD_u16(emu, reg) reg = read_u16(emu);
-#define LD_addr_reg(emu, addr, reg) write(emu, addr,  reg);
+#define LD_addr_reg(emu, addr, reg) emu_write(emu, addr,  reg);
 #define LD_R_u8(emu, reg, u_8) reg = u_8;
 #define LD_RR(emu, r1, r2) r1 = r2;
-#define LD_u16_R(emu, addr, r) write(emu, addr, r);
+#define LD_u16_R(emu, addr, r) emu_write(emu, addr, r);
 
 #define INC_RR(emu, reg) reg ++;
 #define DEC_RR(emy, reg) reg --;
@@ -44,12 +44,42 @@
 
 /* Some very imp functions */
 
+static bool perform_IO_actions(Emulator* emu, u16 diff, u8 byte){
+    /* Returns whether we have to continue writing to IO after this execution. */
+    switch (diff){
+        case R_SC: {
+            if (byte == 0x81){
+                printf("%c", emu->IO[R_SB]);
+                emu->IO[R_SC] = 0x00;
+            }
+        }
+    }
+
+    return 1;
+}
+
+static void emu_write(Emulator* emu, u16 addr, u8 byte){
+    
+    printf("Writing 0x%02x to address 0x%04x\n", byte, addr);
+
+    if ((addr >= ECHO_RAM && addr <= ECHO_RAM_END) || (addr >= NOT_USABLE && addr <= NOT_USABLE_END)) return;
+
+    if (addr >= VRAM_8KB && addr <= VRAM_8KB_END) emu->vram[addr - VRAM_8KB] = byte;
+    else if (addr >= WRAM_4KB && addr <= WRAM_4KB_END) emu->wram1[addr - WRAM_4KB] = byte;
+    else if (addr >= WRAM_SWITCHABLE_4KB && addr <= WRAM_SWITCHABLE_4KB_END) emu->wram2[addr - WRAM_SWITCHABLE_4KB] = byte;
+    else if (addr >= HIGH_RAM && addr <= HIGH_RAM_END) emu->hram[addr - HIGH_RAM] = byte;
+    else if (addr >= IO_REGISTERS && addr <= IO_REGISTERS_END){
+        if (perform_IO_actions(emu, addr - IO_REGISTERS, byte)) return;
+        emu->IO[addr - IO_REGISTERS] = byte;
+    }
+}
+
 u8 read(Emulator* emu, u16 addr){
     if (addr >= 0x0 && addr <= 0x7fff) return emu->cart->file[addr];
     if (addr >= VRAM_8KB && addr <= VRAM_8KB_END) return emu->vram[addr - VRAM_8KB];
     if (addr >= WRAM_4KB && addr <= WRAM_4KB_END) return emu->wram1[addr - WRAM_4KB];
     if (addr >= WRAM_SWITCHABLE_4KB && addr <= WRAM_SWITCHABLE_4KB_END) return emu->wram2[addr - WRAM_SWITCHABLE_4KB];
-    if (addr >= HIGH_RAM && addr >= HIGH_RAM_END) return emu->hram[addr - HIGH_RAM];
+    if (addr >= HIGH_RAM && addr <= HIGH_RAM_END) return emu->hram[addr - HIGH_RAM];
     if (addr >= IO_REGISTERS && addr <= IO_REGISTERS_END) return emu->IO[addr - IO_REGISTERS];
     
     //printf("Found some address, 0x%04x, which cannot be actually accessed.", addr);
@@ -65,8 +95,8 @@ u8 read_4C(Emulator* emu, u16 addr){
 }
 
 u16 read_u16(Emulator* emu){
-    u8 lower = read(emu, ++ emu->PC.entireByte);
-    u8 higher = read(emu, ++ emu->PC.entireByte);
+    u8 lower = read(emu, emu->PC.entireByte ++);
+    u8 higher = read(emu, emu->PC.entireByte ++);
 
     u16 total = lower | (higher << 8);
 
@@ -74,8 +104,8 @@ u16 read_u16(Emulator* emu){
 }
 
 u8 read_u16_8C(Emulator* emu){
-    u8 lower = read_4C(emu, ++ emu->PC.entireByte);
-    u8 higher = read(emu, ++ emu->PC.entireByte);
+    u8 lower = read_4C(emu, emu->PC.entireByte ++);
+    u8 higher = read_4C(emu, emu->PC.entireByte ++);
 
     u16 total = lower | (higher << 8);
 
@@ -84,50 +114,16 @@ u8 read_u16_8C(Emulator* emu){
 
 u8 read_u8(Emulator* emu){
     /* Read what is present at the next address */
-    return (u8)(read(emu, ++ emu->PC.entireByte));
+    return (u8)(read(emu, emu->PC.entireByte ++));
 }
 
 u8 read_u8_4C(Emulator* emu){
-    return read_4C(emu, ++ emu->PC.entireByte);
-}
-
-static bool perform_IO_actions(Emulator* emu, u16 diff, u8 byte){
-    /* Returns whether we have to continue writing to IO after this execution. */
-    switch (diff){
-        case R_SC: {
-            if (byte == 0x81){
-                printf("%c", emu->IO[R_SB]);
-                emu->IO[R_SC] = 0x00;
-            }
-        }
-    }
-
-    return 1;
-}
-
-static void write(Emulator* emu, u16 addr, u8 byte){
-    if ((addr >= ECHO_RAM && addr <= ECHO_RAM_END) || (addr >= NOT_USABLE && addr <= NOT_USABLE_END)) return;
-    
-    if (addr >= VRAM_8KB && addr <= VRAM_8KB_END) emu->vram[addr - VRAM_8KB] = byte;
-    else if (addr >= WRAM_4KB && addr <= WRAM_4KB_END) emu->wram1[addr - WRAM_4KB] = byte;
-    else if (addr >= WRAM_SWITCHABLE_4KB && addr <= WRAM_SWITCHABLE_4KB_END) emu->wram2[addr - WRAM_SWITCHABLE_4KB] = byte;
-    else if (addr >= HIGH_RAM && addr <= HIGH_RAM_END) emu->hram[addr - HIGH_RAM] = byte;
-    else if (addr >= IO_REGISTERS && addr <= IO_REGISTERS_END){
-        if (perform_IO_actions(emu, addr - IO_REGISTERS, byte)) return;
-        emu->IO[addr - IO_REGISTERS] = byte;
-    }
+    return read_4C(emu, emu->PC.entireByte ++);
 }
 
 void Start(Cartridge* cart, Emulator* emu){
     emu->cart = cart;
     emu->run = true;
-
-    #ifdef DEBUG_OUTPUT
-        
-        printRegisters(emu);
-        printInstruction(emu);
-
-    #endif
 
     int dispatch_count = 0;
 
@@ -522,8 +518,6 @@ void prefixCB(Emulator* emu){
 
 void dispatch(Emulator* emu){
 
-    u8 opcode = read_u8_4C(emu);
-
     #ifdef DEBUG_OUTPUT
         
         printRegisters(emu);
@@ -531,10 +525,12 @@ void dispatch(Emulator* emu){
 
     #endif
 
+    u8 opcode = read_u8_4C(emu);
+
     switch (opcode){
         case 0x00: break;
         case 0x01: LD_u16(emu, BC(emu)); break;
-        case 0x02: LD_addr_reg(emu, read(emu, BC(emu)), A(emu)); break;
+        case 0x02: LD_addr_reg(emu, BC(emu), A(emu)); break;
         case 0x03: INC_RR(emu, BC(emu)); break;
         case 0x04: INC(emu, B(emu)); break;
         case 0x05: DEC(emu, B(emu)); break;
@@ -544,8 +540,8 @@ void dispatch(Emulator* emu){
             u16 twobytes = read_u16(emu);
             u16 sp = emu->SP.entireByte;
 
-            write(emu, twobytes + 1, sp >> 8);
-            write(emu, twobytes, sp & 0xff);
+            emu_write(emu, twobytes + 1, sp >> 8);
+            emu_write(emu, twobytes, sp & 0xff);
             break;
         }
         case 0x09: add_u16_RR(emu, emu->HL, emu->BC); break;
@@ -558,7 +554,7 @@ void dispatch(Emulator* emu){
 
         case 0x10: break;
         case 0x11: LD_u16(emu, DE(emu)); break;
-        case 0x12: LD_addr_reg(emu, read(emu, DE(emu)), A(emu)); break;
+        case 0x12: LD_addr_reg(emu, DE(emu), A(emu)); break;
         case 0x13: INC_RR(emu, DE(emu)); break;
         case 0x14: INC(emu, D(emu)); break;
         case 0x15: DEC(emu, D(emu)); break;
@@ -575,7 +571,7 @@ void dispatch(Emulator* emu){
 
         case 0x20: jump_relative_condition(emu, CONDITION_NZ(emu)); break;
         case 0x21: LD_u16(emu, HL(emu)); break;
-        case 0x22: LD_addr_reg(emu, read(emu, HL(emu)), A(emu)); INC_RR(emu, HL(emu)); break;
+        case 0x22: LD_addr_reg(emu, HL(emu), A(emu)); INC_RR(emu, HL(emu)); break;
         case 0x23: INC_RR(emu, HL(emu)); break;
         case 0x24: INC(emu, H(emu)); break;
         case 0x25: DEC(emu, H(emu)); break;
@@ -592,14 +588,14 @@ void dispatch(Emulator* emu){
 
         case 0x30: jump_relative_condition(emu, CONDITION_NC(emu)); break;
         case 0x31: LD_u16(emu, emu->SP.entireByte); break;
-        case 0x32: LD_addr_reg(emu, read(emu, HL(emu)), A(emu)); DEC_RR(emu, HL(emu)); break;
+        case 0x32: LD_addr_reg(emu, HL(emu), A(emu)); DEC_RR(emu, HL(emu)); break;
         case 0x33: INC_RR(emu, emu->SP.entireByte); break;
         case 0x34: {
             /* INC (HL) */
             u16 addr = HL(emu);
             u8 old = read(emu, addr);
             u8 new = old + 1;
-            write(emu, addr, new);
+            emu_write(emu, addr, new);
 
             set_flagz(emu, new);
             set_flagh_addu16(emu, old, 1);
@@ -612,7 +608,7 @@ void dispatch(Emulator* emu){
             u16 addr = HL(emu);
             u8 old = read(emu, addr);
             u8 new = old - 1;
-            write(emu, addr, new);
+            emu_write(emu, addr, new);
 
             set_flagz(emu, new);
             set_flagc_subu16(emu, old, 1);
@@ -772,33 +768,45 @@ void dispatch(Emulator* emu){
         case 0xBE: cp_u8_u8(emu, A(emu), read(emu, HL(emu))); break;
         case 0xBF: cp_u8_u8(emu, A(emu), A(emu)); break;
 
+        /*
+        A00|B11|C00|Dd0|E00|H50|L00|SPfffe]
+        [0x020f][0x78][Z1 N1 H0 C0]      LD A, B
+        [A11|B11|C00|Dd0|E00|H50|L00|SPfffe]
+        [0x0210][0xc3][Z1 N1 H0 C0]      JP a16 (0xc000)
+        [A11|B11|C00|Dd0|E00|H50|L00|SPfffe]
+        [0xc000][0x00][Z1 N1 H0 C0]      NOP
+        */
+
         case 0xC3: {
             u16 stuff = read_u16(emu); 
-            emu->PC.entireByte = stuff - 1;
+            emu->PC.entireByte = stuff;
             break;
         }
 
         /* CONDITION_NZ */
         case 0xC0: ret_condition(emu, CONDITION_NZ(emu)); break;
-    
         case 0xC6: A(emu) = add_u8_u8(emu, A(emu), read_u8(emu)); break;
-        
         case 0xCB: prefixCB(emu); break;
-
         case 0xCE: A(emu) = adc_u8_u8(emu, A(emu), read_u8(emu)); break;
 
         case 0xD6: A(emu) = sub_u8_u8(emu, A(emu), read_u8(emu)); break;
         case 0xDE: A(emu) = sbc_u8_u8(emu, A(emu), read_u8(emu)); break;
 
         case 0xE6: A(emu) = and_u8_u8(emu, A(emu), read_u8(emu)); break;
+        case 0xEA: {
+            emu->PC.entireByte ++;
+            emu_write(emu, read_u16_8C(emu), A(emu)); break;
+        }
         case 0xEE: A(emu) = xor_u8_u8(emu, A(emu), read_u8(emu)); break;
-
+        
+        case 0xF3: /* INTERRUPT MASTER DISABLE */ break;
         case 0xF6: A(emu) = or_u8_u8(emu, A(emu), read_u8(emu)); break;
         case 0xFE: cp_u8_u8(emu, A(emu), read_u8(emu)); break;
         
         default: {
-            //printf("No implementation found for: 0x%2x\n", opcode);
-            emu->run = false;
+            // printf("No implementation found for: 0x%2x\n", opcode);
+            /* For now, continue the execution. In the future however, this will stop execution 
+            emu->run = false; */
             break;
         }
     }
