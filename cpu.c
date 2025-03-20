@@ -103,7 +103,7 @@ u16 read_u16(Emulator* emu){
     return total;
 }
 
-u8 read_u16_8C(Emulator* emu){
+u16 read_u16_8C(Emulator* emu){
     u8 lower = read_4C(emu, emu->PC.entireByte ++);
     u8 higher = read_4C(emu, emu->PC.entireByte ++);
 
@@ -134,39 +134,50 @@ void Start(Cartridge* cart, Emulator* emu){
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////////
+/* Stack Related Functions */
 
-/*
+static void push16(Emulator* emu, u16 value){
+    u16 pointer = emu->SP.entireByte;
 
-Context from file1:
-=== log1.txt ===
-Previous instruction (#14):
-[A20|B11|C10|Dc0|E01|H40|L02|SPfffe]
-[0x0208][Z0 N0 H0 C0]      INC E
+    /* msb */
+    emu_write(emu, pointer - 1, value >> 8);
 
-Current instruction (#15):
-[A20|B11|C10|Dc0|E02|H40|L02|SPfffe]
-[0x0209][Z0 N0 H0 C0]      JR NZ, r8 (-5)
+    /* lsb */
+    emu_write(emu, pointer - 2, value & 0xff);
 
-Next instruction (#16):
-[A20|B11|C10|Dc0|E02|H40|L02|SPfffe]
-[0x0206][Z0 N0 H0 C0]      LD A, (HL+)
+    /* update the emu */
+    emu->SP.entireByte -= 2;
+}
 
+static u16 pop16(Emulator* emu){
+    u16 pointer = emu->SP.entireByte;
 
-Context from file2:
-=== log2.txt ===
-Previous instruction (#14):
-[A20|B11|C10|Dc0|E01|H40|L02|SPfffe]
-[0x0208][0x1c][Z0 N0 H0 C0]      INC E
+    u8 lower = read_u8_4C(emu);
+    u8 higher = read_u8_4C(emu);
 
-Current instruction (#15):
-[A20|B11|C10|Dc0|E02|H40|L02|SPfffe]
-[0x0209][0x20][Z1 N0 H0 C0]      JR NZ, r8 (-5)
+    emu->SP.entireByte += 2;
 
-Next instruction (#16):
-[A20|B11|C10|Dc0|E02|H40|L02|SPfffe]
-[0x0206][0x2a][Z1 N0 H0 C0]      LD A, (HL+)
+    return (u16) (lower | (higher << 8));
+}
 
-*/
+static void callCondition(Emulator* emu, u16 addr, bool cond){
+    if (!cond) return;
+
+    cyclesSync_4(emu);
+    push16(emu, emu->PC.entireByte);
+    emu->PC.entireByte = addr;
+}
+
+static void ret_condition(Emulator* emu, bool condition){
+    cyclesSync_4(emu);
+    if (!condition) return;
+
+    emu->PC.entireByte = pop16(emu);
+    cyclesSync_4(emu);
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 
 static void inc_r8(Emulator* emu, u8 newval){
     set_flagz(emu, newval);
@@ -479,26 +490,7 @@ static void cp_u8_u8(Emulator* emu, u8 val1, u8 val2){
     set_flagc_sub(emu, val1, val2);
 }
 
-static u16 pop16(Emulator* emu){
 
-    /* Read the current address (u16) and move to the next one */
-    u16 stackPointer = emu->SP.entireByte;
-
-    u8 lowByte = read_4C(emu, stackPointer);
-    u8 highByte = read_4C(emu, stackPointer + 1);
-
-    emu->SP.entireByte += 2;
-    
-    return (u16)(lowByte | (highByte << 8));
-}
-
-static void ret_condition(Emulator* emu, bool condition){
-    cyclesSync_4(emu);
-    if (!condition) return;
-
-    emu->PC.entireByte = pop16(emu);
-    cyclesSync_4(emu);
-}
 
 static void jump_relative_condition(Emulator* emu, bool condition_status){
     int8_t jp_count = (int8_t) read_u8_4C(emu); /* 4 cycles */
@@ -791,14 +783,15 @@ void dispatch(Emulator* emu){
 
         case 0xD6: A(emu) = sub_u8_u8(emu, A(emu), read_u8(emu)); break;
         case 0xDE: A(emu) = sbc_u8_u8(emu, A(emu), read_u8(emu)); break;
-
-        case 0xE6: A(emu) = and_u8_u8(emu, A(emu), read_u8(emu)); break;
-        case 0xEA: {
-            emu->PC.entireByte ++;
-            emu_write(emu, read_u16_8C(emu), A(emu)); break;
-        }
-        case 0xEE: A(emu) = xor_u8_u8(emu, A(emu), read_u8(emu)); break;
         
+        case 0xE0: emu_write(emu, 0xff00 + read_u8_4C(emu), A(emu)); break;
+        case 0xE2: emu_write(emu, 0xff00 + C(emu), A(emu)); break;
+        case 0xE6: A(emu) = and_u8_u8(emu, A(emu), read_u8(emu)); break;
+        case 0xEA: emu_write(emu, read_u16_8C(emu), A(emu)); break;
+        case 0xEE: A(emu) = xor_u8_u8(emu, A(emu), read_u8(emu)); break;
+
+        case 0xF0: A(emu) = read_4C(emu, 0xff00 + read_u8_4C(emu)); break;
+        case 0xF2: A(emu) = read_4C(emu, 0xff00 + C(emu)); break;
         case 0xF3: /* INTERRUPT MASTER DISABLE */ break;
         case 0xF6: A(emu) = or_u8_u8(emu, A(emu), read_u8(emu)); break;
         case 0xFE: cp_u8_u8(emu, A(emu), read_u8(emu)); break;
