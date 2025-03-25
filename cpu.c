@@ -169,6 +169,11 @@ static void callCondition(Emulator* emu, u16 addr, bool cond){
     emu->PC.entireByte = addr;
 }
 
+static void ret(Emulator* emu){
+    emu->PC.entireByte = pop16(emu);
+    cyclesSync_4(emu);
+}
+
 static void ret_condition(Emulator* emu, bool condition){
     cyclesSync_4(emu);
     if (!condition) return;
@@ -778,7 +783,9 @@ void dispatch(Emulator* emu){
         /* CONDITION_NZ */
         case 0xC0: ret_condition(emu, CONDITION_NZ(emu)); break;
         case 0xC6: A(emu) = add_u8_u8(emu, A(emu), read_u8(emu)); break;
+        case 0xC9: break;
         case 0xCB: prefixCB(emu); break;
+        case 0xCD: callCondition(emu, read_u16_8C(emu), true); break;
         case 0xCE: A(emu) = adc_u8_u8(emu, A(emu), read_u8(emu)); break;
 
         case 0xD6: A(emu) = sub_u8_u8(emu, A(emu), read_u8(emu)); break;
